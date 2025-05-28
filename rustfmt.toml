@@ -1,0 +1,4 @@
+version = "Two"
+use_small_heuristics = "Max"
+single_line_if_else = true
+tab_spaces = 2
