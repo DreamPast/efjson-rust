@@ -1,6 +1,10 @@
 [package]
-name = "efjson-rust"
+name = "efjson"
 version = "0.1.0"
+description = "a streaming and event-driven JSON parser (with support for JSON5 and JSONC)"
+license = "MIT"
 edition = "2024"
+homepage = "https://github.com/DreamPast/efjson-rust"
+repository = "https://github.com/DreamPast/efjson-rust"
 
 [dependencies]

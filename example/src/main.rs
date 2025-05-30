@@ -1,4 +1,8 @@
-use efjson_rust::{JsonOption, json_stream_parse};
+use efjson::{
+  JsonEventObjectReceiver, JsonEventParser, JsonEventReceiver, JsonOption, JsonStreamParser,
+};
+
+#[allow(dead_code)]
 fn perf() {
   use std::time::Instant;
   let mut s1 = String::new();
@@ -13,14 +17,13 @@ fn perf() {
   s += "]";
 
   let start = Instant::now();
-  let x = json_stream_parse(&s, JsonOption::default());
+  let x = JsonStreamParser::parse(JsonOption::default(), &s);
   println!("{} {}", s.len(), x.unwrap().len());
   let duration = start.elapsed();
   println!("运行时间: {:?}", duration);
 }
 
-fn main() {
-  const SRC: &'static str = r#"{
+const SRC: &'static str = r#"{
   "null": null,
   "true": true,
   "false": false,
@@ -46,9 +49,30 @@ fn main() {
     "2st": {}
   }
 }"#;
-  println!("{}", SRC);
-  for item in json_stream_parse(SRC, JsonOption::default()).unwrap() {
+
+#[allow(dead_code)]
+fn test_stream() {
+  for item in JsonStreamParser::parse(JsonOption::default(), SRC).unwrap() {
     println!("{:?}", item);
   }
+}
+
+#[allow(dead_code)]
+fn test_event() {
+  let receiver = JsonEventReceiver {
+    object: JsonEventObjectReceiver {
+      set: Some(Box::new(|k, v| {
+        println!("{}: {:?}", k, v);
+      })),
+      ..Default::default()
+    },
+    ..JsonEventReceiver::new_all()
+  };
+  JsonEventParser::parse(receiver, JsonOption::new_json5(), SRC).unwrap();
+}
+
+fn main() {
+  test_stream();
+  test_event();
   perf();
 }

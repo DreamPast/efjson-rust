@@ -1,158 +1,19 @@
-use std::hint::unreachable_unchecked;
+use crate::{JsonOption, JsonParserError, JsonParserPosition};
 
-#[derive(Default, Clone)]
-pub struct JsonOption {
-  // << white space >>
-  /**
-   * whether to accept whitespace in JSON5
-   */
-  pub accept_json5_whitespace: bool,
-
-  // << array >>
-  /**
-   * whether to accept a single trailing comma in array
-   * @example '[1,]'
-   */
-  pub accept_trailing_comma_in_array: bool,
-
-  // << object >>
-  /**
-   * whether to accept a single trailing comma in object
-   * @example '{"a":1,}'
-   */
-  pub accept_trailing_comma_in_object: bool,
-  /**
-   * whether to accept identifier key in object
-   * @example '{a:1}'
-   */
-  pub accept_identifier_key: bool,
-
-  // << string >>
-  /**
-   * whether to accept single quote in string
-   * @example "'a'"
-   */
-  pub accept_single_quote: bool,
-  /**
-   * whether to accept multi-line string
-   * @example '"a\\\nb"'
-   */
-  pub accept_multiline_string: bool,
-  /**
-   * whether to accept JSON5 string escape
-   * @example '"\\x01"', '\\v', '\\0'
-   */
-  pub accpet_json5_string_escape: bool,
-
-  // << number >>
-  /**
-   * whether to accept positive sign in number
-   * @example '+1', '+0'
-   */
-  pub accept_positive_sign: bool,
-  /**
-   * whether to accept empty fraction in number
-   * @example '1.', '0.'
-   */
-  pub accept_empty_fraction: bool,
-  /**
-   * whether to accept empty integer in number
-   * @example '.1', '.0'
-   */
-  pub accept_empty_integer: bool,
-  /**
-   * whether to accept NaN
-   */
-  pub accept_nan: bool,
-  /**
-   * whether to accept Infinity
-   */
-  pub accept_infinity: bool,
-  /**
-   * whether to accept hexadecimal integer
-   * @example '0x1', '0x0'
-   */
-  pub accept_hexadecimal_integer: bool,
-  /**
-   * whether to accept octal integer
-   * @example '0o1', '0o0'
-   */
-  pub accept_octal_integer: bool,
-  /**
-   * whether to accept binary integer
-   * @example '0b1', '0b0'
-   */
-  pub accept_binary_integer: bool,
-
-  // << comment >>
-  /**
-   * whether to accept single line comment
-   * @example '// a comment'
-   */
-  pub accept_single_line_comment: bool,
-  /**
-   * whether to accept multi-line comment
-   */
-  pub accpet_multi_line_comment: bool,
-}
-impl JsonOption {
-  pub fn new_jsonc() -> Self {
-    JsonOption {
-      // << comment >>
-      accept_single_line_comment: true,
-      accpet_multi_line_comment: true,
-      ..Default::default()
-    }
-  }
-  pub fn new_json5() -> Self {
-    JsonOption {
-      // << white space >>
-      accept_json5_whitespace: true,
-      // << array >>
-      accept_trailing_comma_in_array: true,
-      // << object >>
-      accept_trailing_comma_in_object: true,
-      accept_identifier_key: true,
-      // << string >>
-      accept_single_quote: true,
-      accept_multiline_string: true,
-      accpet_json5_string_escape: true,
-      // << number >>
-      accept_positive_sign: true,
-      accept_empty_fraction: true,
-      accept_empty_integer: true,
-      accept_nan: true,
-      accept_infinity: true,
-      accept_hexadecimal_integer: true,
-      // << comment >>
-      accept_single_line_comment: true,
-      accpet_multi_line_comment: true,
-      ..Default::default()
-    }
-  }
-  pub fn new_full() -> Self {
-    return JsonOption {
-      accept_octal_integer: true,
-      accept_binary_integer: true,
-      ..Self::new_json5()
-    };
-  }
-}
-
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum _ValueNumberState {
   Sign,
   Zero,
   Digit,
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum _ValueExponentState {
   Desire,
   Sign,
   Digit,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum _ValueState {
   Empty,
   Null(u8),
@@ -182,7 +43,7 @@ enum _ValueState {
   IdentifierEscape(bool, u8, u16), // used to check identifier key
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum _LocationState {
   RootStart,
   KeyFirstStart, // used to check trailing comma
@@ -206,6 +67,20 @@ pub enum JsonLocation {
   Element,
   Object,
   Array,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum JsonTokenRootInfo {
+  String,
+  Number,
+  Object,
+  Boolean,
+  Null,
+  Identifier,
+  Array,
+  Whitespace,
+  Eof,
+  Comment,
 }
 #[derive(Clone, Copy, Debug)]
 pub enum JsonTokenInfo {
@@ -261,6 +136,54 @@ pub enum JsonTokenInfo {
   CommentMultiLineEnd,
 }
 
+impl JsonTokenInfo {
+  pub fn get_root_info(&self) -> JsonTokenRootInfo {
+    match self {
+      Self::Whitespace => JsonTokenRootInfo::Whitespace,
+      Self::Eof => JsonTokenRootInfo::Eof,
+      Self::Null(_, _) => JsonTokenRootInfo::Null,
+      Self::True(_, _) | Self::False(_, _) => JsonTokenRootInfo::Boolean,
+      Self::StringStart
+      | Self::StringEnd
+      | Self::StringNormal
+      | Self::StringEscapeStart
+      | Self::StringEscapeUnicodeStart
+      | Self::StringEscape(_)
+      | Self::StringEscapeUnicode(_, _)
+      | Self::StringNextLine
+      | Self::StringEscapeHexStart
+      | Self::StringEscapeHex(_, _) => JsonTokenRootInfo::String,
+      Self::NumberIntegerSign
+      | Self::NumberExponentSign
+      | Self::NumberIntegerDigit
+      | Self::NumberFractionDigit
+      | Self::NumberExponentDigit
+      | Self::NumberFractionStart
+      | Self::NumberExponentStart
+      | Self::NumberNan(_, _)
+      | Self::NumberInfinity(_, _)
+      | Self::NumberHexStart
+      | Self::NumberHex
+      | Self::NumberOctStart
+      | Self::NumberOct
+      | Self::NumberBinStart
+      | Self::NumberBin => JsonTokenRootInfo::Number,
+      Self::ObjectStart | Self::ObjectNext | Self::ObjectValueStart | Self::ObjectEnd => {
+        JsonTokenRootInfo::Object
+      }
+      Self::ArrayStart | Self::ArrayNext | Self::ArrayEnd => JsonTokenRootInfo::Array,
+      Self::IdentifierNormal | Self::IdentifierEscapeStart(_, _) | Self::IdentifierEscape(_, _) => {
+        JsonTokenRootInfo::Identifier
+      }
+      Self::CommentSingleLineMayStart
+      | Self::CommentSingleLine
+      | Self::CommentMultiLineMayStart
+      | Self::CommentMultiLine
+      | Self::CommentMultiLineEnd => JsonTokenRootInfo::Comment,
+    }
+  }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct JsonToken {
   pub c: char,
@@ -268,24 +191,7 @@ pub struct JsonToken {
   pub location: JsonLocation,
 }
 
-pub type JsonParserPosition = u32;
-#[derive(Clone)]
-pub struct JsonStreamParser {
-  position: JsonParserPosition,
-  line: JsonParserPosition,
-  column: JsonParserPosition,
-  meet_cr: bool,
-  location: _LocationState,
-  state: _ValueState,
-  stack: Vec<_LocationState>,
-  option: JsonOption,
-}
-
-type JsonStreamParserError = &'static str;
-
 mod char_check {
-  use std::hint::unreachable_unchecked;
-
   pub fn _is_whitespace(c: char, fit_json5: bool) -> bool {
     static _EXTRA_WHITESPACE: &str = "\u{000B}\u{000C}\u{00A0}\u{FEFF}\u{1680}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}\u{202F}\u{205F}\u{3000}";
     " \t\n\r".contains(c) || (fit_json5 && _EXTRA_WHITESPACE.contains(c))
@@ -759,18 +665,27 @@ mod char_check {
   }
 
   pub fn _to_digit(c: char) -> u8 {
-    unsafe {
-      match c {
-        '0'..='9' => c as u8 - b'0',
-        'a'..='f' => c as u8 - b'a' + 10,
-        'A'..='F' => c as u8 - b'A' + 10,
-        _ => unreachable_unchecked(),
-      }
+    match c {
+      '0'..='9' => c as u8 - b'0',
+      'a'..='f' => c as u8 - b'a' + 10,
+      'A'..='F' => c as u8 - b'A' + 10,
+      _ => unreachable!(),
     }
   }
 }
 use char_check::*;
 
+#[derive(Clone, Debug)]
+pub struct JsonStreamParser {
+  position: JsonParserPosition,
+  line: JsonParserPosition,
+  column: JsonParserPosition,
+  meet_cr: bool,
+  location: _LocationState,
+  state: _ValueState,
+  stack: Vec<_LocationState>,
+  option: JsonOption,
+}
 impl JsonStreamParser {
   pub fn new(option: JsonOption) -> Self {
     JsonStreamParser {
@@ -786,16 +701,14 @@ impl JsonStreamParser {
   }
 
   fn _next_location(state: _LocationState) -> _LocationState {
-    unsafe {
-      match state {
-        _LocationState::RootStart => _LocationState::RootEnd,
-        _LocationState::KeyFirstStart | _LocationState::KeyStart => _LocationState::KeyEnd,
-        _LocationState::ValueStart => _LocationState::ValueEnd,
-        _LocationState::ElementFirstStart | _LocationState::ElementStart => {
-          _LocationState::ElementEnd
-        }
-        _ => unreachable_unchecked(),
+    match state {
+      _LocationState::RootStart => _LocationState::RootEnd,
+      _LocationState::KeyFirstStart | _LocationState::KeyStart => _LocationState::KeyEnd,
+      _LocationState::ValueStart => _LocationState::ValueEnd,
+      _LocationState::ElementFirstStart | _LocationState::ElementStart => {
+        _LocationState::ElementEnd
       }
+      _ => unreachable!(),
     }
   }
   fn _transform_location(location: _LocationState) -> JsonLocation {
@@ -812,7 +725,7 @@ impl JsonStreamParser {
     }
   }
 
-  fn _handle_comma(&mut self) -> Result<(JsonTokenInfo, JsonLocation), JsonStreamParserError> {
+  fn _handle_comma(&mut self) -> Result<(JsonTokenInfo, JsonLocation), JsonParserError> {
     match self.location {
       _LocationState::ValueEnd => {
         self.location = _LocationState::KeyStart;
@@ -827,12 +740,10 @@ impl JsonStreamParser {
       _ => Err("unexpected comma"),
     }
   }
-  fn _handle_array_end(&mut self) -> Result<(JsonTokenInfo, JsonLocation), JsonStreamParserError> {
+  fn _handle_array_end(&mut self) -> Result<(JsonTokenInfo, JsonLocation), JsonParserError> {
     match self.location {
       _LocationState::ElementFirstStart | _LocationState::ElementEnd => {
-        unsafe {
-          self.location = Self::_next_location(self.stack.pop().unwrap_unchecked());
-        }
+        self.location = Self::_next_location(self.stack.pop().unwrap());
         self.state = _ValueState::Empty;
         Ok((JsonTokenInfo::ArrayEnd, Self::_transform_location(self.location)))
       }
@@ -850,7 +761,7 @@ impl JsonStreamParser {
       _ => Err("bad closing square bracket"),
     }
   }
-  fn _handle_object_end(&mut self) -> Result<(JsonTokenInfo, JsonLocation), JsonStreamParserError> {
+  fn _handle_object_end(&mut self) -> Result<(JsonTokenInfo, JsonLocation), JsonParserError> {
     match self.location {
       _LocationState::KeyFirstStart | _LocationState::ValueEnd => {
         unsafe {
@@ -873,7 +784,7 @@ impl JsonStreamParser {
       _ => Err("bad closing curly brace"),
     }
   }
-  fn _handle_eof(&mut self) -> Result<JsonTokenInfo, JsonStreamParserError> {
+  fn _handle_eof(&mut self) -> Result<JsonTokenInfo, JsonParserError> {
     match self.location {
       _LocationState::RootStart | _LocationState::RootEnd => {
         self.location = _LocationState::Eof;
@@ -890,7 +801,7 @@ impl JsonStreamParser {
       _LocationState::Eof => Err("unexpected EOF"),
     }
   }
-  fn _handle_slash(&mut self) -> Result<(JsonTokenInfo, JsonLocation), JsonStreamParserError> {
+  fn _handle_slash(&mut self) -> Result<(JsonTokenInfo, JsonLocation), JsonParserError> {
     if self.option.accept_single_line_comment || self.option.accpet_multi_line_comment {
       self.state = _ValueState::CommentMayStart;
       Ok((JsonTokenInfo::CommentSingleLineMayStart, Self::_transform_location(self.location)))
@@ -901,7 +812,7 @@ impl JsonStreamParser {
   fn _handle_number_separator(
     &mut self,
     c: char,
-  ) -> Result<(JsonTokenInfo, JsonLocation), JsonStreamParserError> {
+  ) -> Result<(JsonTokenInfo, JsonLocation), JsonParserError> {
     self.state = _ValueState::Empty;
     let old_location = self.location;
     self.location = Self::_next_location(self.location);
@@ -915,7 +826,7 @@ impl JsonStreamParser {
     }
   }
 
-  fn _step_empty(&mut self, c: char) -> Result<JsonToken, JsonStreamParserError> {
+  fn _step_empty(&mut self, c: char) -> Result<JsonToken, JsonParserError> {
     let olocation = Self::_transform_location(self.location);
 
     if _is_whitespace(c, self.option.accept_json5_whitespace) {
@@ -1061,11 +972,7 @@ impl JsonStreamParser {
       _ => Err("unexpected character"),
     }
   }
-  fn _step_string(
-    &mut self,
-    c: char,
-    single_quote: bool,
-  ) -> Result<JsonToken, JsonStreamParserError> {
+  fn _step_string(&mut self, c: char, single_quote: bool) -> Result<JsonToken, JsonParserError> {
     if c == if single_quote { '\'' } else { '"' } {
       self.location = Self::_next_location(self.location);
       self.state = _ValueState::Empty;
@@ -1093,7 +1000,7 @@ impl JsonStreamParser {
       })
     }
   }
-  fn _step(&mut self, c: char) -> Result<JsonToken, JsonStreamParserError> {
+  fn _step(&mut self, c: char) -> Result<JsonToken, JsonParserError> {
     static _NULL: [char; 4] = ['n', 'u', 'l', 'l'];
     static _TRUE: [char; 4] = ['t', 'r', 'u', 'e'];
     static _FALSE: [char; 5] = ['f', 'a', 'l', 's', 'e'];
@@ -1571,7 +1478,7 @@ impl JsonStreamParser {
     }
   }
 
-  pub fn feed_one(&mut self, c: char) -> Result<JsonToken, JsonStreamParserError> {
+  pub fn feed_one(&mut self, c: char) -> Result<JsonToken, JsonParserError> {
     if self.meet_cr {
       if c != '\n' {
         self.line += 1;
@@ -1596,7 +1503,7 @@ impl JsonStreamParser {
     }
     return ret;
   }
-  pub fn feed(&mut self, s: &str) -> Result<Vec<JsonToken>, (usize, JsonStreamParserError)> {
+  pub fn feed(&mut self, s: &str) -> Result<Vec<JsonToken>, (usize, JsonParserError)> {
     let mut tokens = Vec::new();
     let mut cnt = 0;
     for c in s.chars() {
@@ -1608,7 +1515,7 @@ impl JsonStreamParser {
     }
     Ok(tokens)
   }
-  pub fn end(&mut self) -> Result<JsonToken, JsonStreamParserError> {
+  pub fn end(&mut self) -> Result<JsonToken, JsonParserError> {
     self.feed_one('\0')
   }
 
@@ -1621,26 +1528,23 @@ impl JsonStreamParser {
   pub fn get_column(&self) -> JsonParserPosition {
     self.column
   }
-}
 
-pub fn json_stream_parse(
-  s: &str,
-  option: JsonOption,
-) -> Result<Vec<JsonToken>, (usize, JsonStreamParserError)> {
-  let mut parser = JsonStreamParser::new(option);
+  pub fn parse(option: JsonOption, s: &str) -> Result<Vec<JsonToken>, (usize, JsonParserError)> {
+    let mut parser = JsonStreamParser::new(option);
 
-  let mut tokens = Vec::new();
-  let mut cnt = 0;
-  for c in s.chars() {
-    match parser.feed_one(c) {
+    let mut tokens = Vec::new();
+    let mut cnt = 0;
+    for c in s.chars() {
+      match parser.feed_one(c) {
+        Ok(token) => tokens.push(token),
+        Err(e) => return Err((cnt, e)),
+      }
+      cnt += 1;
+    }
+    match parser.end() {
       Ok(token) => tokens.push(token),
       Err(e) => return Err((cnt, e)),
     }
-    cnt += 1;
+    Ok(tokens)
   }
-  match parser.end() {
-    Ok(token) => tokens.push(token),
-    Err(e) => return Err((cnt, e)),
-  }
-  Ok(tokens)
 }
