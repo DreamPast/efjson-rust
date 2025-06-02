@@ -1,29 +1,29 @@
 use std::hint::unreachable_unchecked;
 
-use crate::{
-  JsonArray, JsonArrayIndex, JsonLocation, JsonObject, JsonOption, JsonParserError,
-  JsonParserPosition, JsonStreamParser, JsonToken, JsonTokenInfo, JsonTokenRootInfo, JsonValue,
+use crate::stream_parser::{
+  self, Location, StreamParser, StreamParserBase, Token, TokenInfo, TokenRootInfo,
 };
+use crate::{JsonArray, JsonObject, JsonParserOption, JsonValue};
 
 #[derive(Default)]
-pub struct JsonEventObjectReceiver {
+pub struct EventObjectReceiver {
   pub set: Option<Box<dyn FnMut(&str, &JsonValue)>>,
   pub next: Option<Box<dyn FnMut()>>,
   pub key_receiver: Option<Box<dyn FnMut(char)>>,
   pub key_save: Option<Box<dyn FnMut(&String)>>,
-  pub subreceiver: Option<Box<dyn FnMut(&str) -> Option<JsonEventReceiver>>>,
+  pub subreceiver: Option<Box<dyn FnMut(&str) -> Option<EventReceiver>>>,
 }
 #[derive(Default)]
-pub struct JsonEventArrayReceiver {
-  pub set: Option<Box<dyn FnMut(JsonArrayIndex, &JsonValue)>>,
-  pub next: Option<Box<dyn FnMut(JsonArrayIndex)>>,
-  pub subreceiver: Option<Box<dyn FnMut(JsonArrayIndex) -> Option<JsonEventReceiver>>>,
+pub struct EventArrayReceiver {
+  pub set: Option<Box<dyn FnMut(usize, &JsonValue)>>,
+  pub next: Option<Box<dyn FnMut(usize)>>,
+  pub subreceiver: Option<Box<dyn FnMut(usize) -> Option<EventReceiver>>>,
 }
 
-pub struct JsonEventReceiver {
+pub struct EventReceiver {
   pub start: Option<Box<dyn FnOnce()>>,
   pub end: Option<Box<dyn FnOnce()>>,
-  pub feed: Option<Box<dyn FnMut(&JsonToken)>>,
+  pub feed: Option<Box<dyn FnMut(&Token)>>,
   pub save: Option<Box<dyn FnOnce(&JsonValue)>>,
   pub integer_save: Option<Box<dyn FnOnce(i64)>>,
 
@@ -36,12 +36,12 @@ pub struct JsonEventReceiver {
   pub accept_array: bool,
 
   pub string_append: Option<Box<dyn FnMut(char)>>,
-  pub object: JsonEventObjectReceiver,
-  pub array: JsonEventArrayReceiver,
+  pub object: EventObjectReceiver,
+  pub array: EventArrayReceiver,
 }
-impl JsonEventReceiver {
+impl EventReceiver {
   pub fn new_empty() -> Self {
-    JsonEventReceiver {
+    EventReceiver {
       accept_null: false,
       accept_boolean: false,
       accept_integer: false,
@@ -55,12 +55,12 @@ impl JsonEventReceiver {
       save: None,
       integer_save: None,
       string_append: None,
-      object: JsonEventObjectReceiver::default(),
-      array: JsonEventArrayReceiver::default(),
+      object: EventObjectReceiver::default(),
+      array: EventArrayReceiver::default(),
     }
   }
   pub fn new_all() -> Self {
-    JsonEventReceiver {
+    EventReceiver {
       accept_null: true,
       accept_boolean: true,
       accept_integer: true,
@@ -74,8 +74,8 @@ impl JsonEventReceiver {
       save: None,
       integer_save: None,
       string_append: None,
-      object: JsonEventObjectReceiver::default(),
-      array: JsonEventArrayReceiver::default(),
+      object: EventObjectReceiver::default(),
+      array: EventArrayReceiver::default(),
     }
   }
 }
@@ -93,7 +93,7 @@ struct _ObjectState {
 struct _ArrayState {
   save_child: bool,
   child: Option<JsonValue>,
-  index: JsonArrayIndex,
+  index: usize,
   array: Option<JsonArray>,
 }
 
@@ -108,13 +108,13 @@ enum _SubState {
   Array(_ArrayState),
 }
 struct _State {
-  receiver: JsonEventReceiver,
+  receiver: EventReceiver,
   substate: _SubState,
 }
 
-fn parse_number(s: &Vec<char>) -> Result<f64, JsonParserError> {
+fn parse_number(s: &Vec<char>) -> Result<f64, EmitterError> {
   let s: String = s.iter().collect();
-  s.parse::<f64>().map_err(|_| "failed to parse number")
+  s.parse::<f64>().map_err(|_| EmitterError::InvalidNumber)
 }
 fn parse_integer(s: &Vec<char>) -> Option<i64> {
   let c0 = unsafe { *s.get_unchecked(0) };
@@ -173,13 +173,26 @@ macro_rules! call_opt_once {
   };
 }
 
-pub struct JsonEventEmitter {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EmitterError {
+  TypeRejected(&'static str),
+  InvalidInteger,
+  InvalidNumber,
+}
+impl std::fmt::Display for EmitterError {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      EmitterError::TypeRejected(s) => write!(f, "EventEmitter - {}", s),
+      EmitterError::InvalidInteger => write!(f, "EventEmitter - invalid integer"),
+      EmitterError::InvalidNumber => write!(f, "EventEmitter - invalid number"),
+    }
+  }
+}
+
+pub struct EventEmitter {
   stack: Vec<_State>,
 }
-impl JsonEventEmitter {
-  pub fn new(receiver: JsonEventReceiver) -> Self {
-    Self { stack: vec![_State { receiver, substate: _SubState::None }] }
-  }
+impl EventEmitter {
   fn _end_value<T>(&mut self, val: T)
   where
     T: Into<JsonValue>,
@@ -210,10 +223,10 @@ impl JsonEventEmitter {
           _ => false,
         });
   }
-  pub fn _feed_stateless(&mut self, token: JsonToken) -> Result<(), JsonParserError> {
+  pub fn _feed_stateless(&mut self, token: Token) -> Result<(), EmitterError> {
     let state = unsafe { self.stack.last_mut().unwrap_unchecked() };
     match token.info {
-      JsonTokenInfo::Null(done, _) => {
+      TokenInfo::Null(done, _) => {
         if let _SubState::None = &state.substate {
           call_opt_once!(state.receiver.start);
           state.substate = _SubState::Null;
@@ -226,7 +239,7 @@ impl JsonEventEmitter {
         }
         Ok(())
       }
-      JsonTokenInfo::True(done, _) => {
+      TokenInfo::True(done, _) => {
         if let _SubState::None = &state.substate {
           call_opt_once!(state.receiver.start);
           state.substate = _SubState::Boolean;
@@ -239,7 +252,7 @@ impl JsonEventEmitter {
         }
         Ok(())
       }
-      JsonTokenInfo::False(done, _) => {
+      TokenInfo::False(done, _) => {
         if let _SubState::None = &state.substate {
           call_opt_once!(state.receiver.start);
           state.substate = _SubState::Boolean;
@@ -255,12 +268,12 @@ impl JsonEventEmitter {
       _ => unreachable!(),
     }
   }
-  pub fn _feed_number(&mut self, token: JsonToken) -> Result<(), JsonParserError> {
+  pub fn _feed_number(&mut self, token: Token) -> Result<(), EmitterError> {
     let need_save = self._need_save();
     let state = unsafe { self.stack.last_mut().unwrap_unchecked() };
     if let _SubState::None = &state.substate {
       if !state.receiver.accept_number && !state.receiver.accept_integer {
-        return Err("number is rejected");
+        return Err(EmitterError::TypeRejected("number is rejected"));
       }
       state.substate = _SubState::Number(if need_save || state.receiver.save.is_some() {
         Some(vec![token.c])
@@ -278,12 +291,12 @@ impl JsonEventEmitter {
     }
     Ok(())
   }
-  pub fn _feed_string(&mut self, token: JsonToken) -> Result<(), JsonParserError> {
+  pub fn _feed_string(&mut self, token: Token) -> Result<(), EmitterError> {
     let need_save = self._need_save();
     let state = unsafe { self.stack.last_mut().unwrap_unchecked() };
     if let _SubState::None = &state.substate {
       if !state.receiver.accept_string {
-        return Err("string is rejected");
+        return Err(EmitterError::TypeRejected("string is rejected"));
       }
       state.substate = _SubState::String(
         if need_save || state.receiver.save.is_some() { Some(String::from(token.c)) } else { None },
@@ -296,27 +309,27 @@ impl JsonEventEmitter {
     call_opt!(state.receiver.feed, &token);
     let _SubState::String(list, _) = &mut state.substate else { unreachable!() };
     match token.info {
-      JsonTokenInfo::StringStart => unreachable!(),
-      JsonTokenInfo::StringEnd => {
+      TokenInfo::StringStart => unreachable!(),
+      TokenInfo::StringEnd => {
         if let Some(s) = list.take() {
           self._end_value(s);
         } else {
           self._end_value_nosave();
         }
       }
-      JsonTokenInfo::StringNormal => {
+      TokenInfo::StringNormal => {
         call_opt!(state.receiver.string_append, token.c);
         list.as_mut().map(|l| l.push(token.c));
       }
-      JsonTokenInfo::StringEscapeStart
-      | JsonTokenInfo::StringEscapeUnicodeStart
-      | JsonTokenInfo::StringEscapeHexStart
-      | JsonTokenInfo::StringNextLine => {}
-      JsonTokenInfo::StringEscape(c) => {
+      TokenInfo::StringEscapeStart
+      | TokenInfo::StringEscapeUnicodeStart
+      | TokenInfo::StringEscapeHexStart
+      | TokenInfo::StringNextLine => {}
+      TokenInfo::StringEscape(c) => {
         call_opt!(state.receiver.string_append, c);
         list.as_mut().map(|l| l.push(token.c));
       }
-      JsonTokenInfo::StringEscapeUnicode(c, _) | JsonTokenInfo::StringEscapeHex(c, _) => {
+      TokenInfo::StringEscapeUnicode(c, _) | TokenInfo::StringEscapeHex(c, _) => {
         if let Some(c) = c {
           call_opt!(state.receiver.string_append, c);
           list.as_mut().map(|l| l.push(token.c));
@@ -326,12 +339,12 @@ impl JsonEventEmitter {
     }
     Ok(())
   }
-  pub fn _feed_identifier(&mut self, token: JsonToken) -> Result<(), JsonParserError> {
+  pub fn _feed_identifier(&mut self, token: Token) -> Result<(), EmitterError> {
     let need_save = self._need_save();
     let state = unsafe { self.stack.last_mut().unwrap_unchecked() };
     if let _SubState::None = &state.substate {
       if !state.receiver.accept_string {
-        return Err("string is rejected");
+        return Err(EmitterError::TypeRejected("string is rejected"));
       }
       state.substate = _SubState::String(
         if need_save || state.receiver.save.is_some() { Some(String::from(token.c)) } else { None },
@@ -341,42 +354,42 @@ impl JsonEventEmitter {
       call_opt_once!(state.receiver.start);
       call_opt!(
         state.receiver.feed,
-        &JsonToken { c: '"', info: JsonTokenInfo::StringStart, location: JsonLocation::Key }
+        &Token { c: '"', info: TokenInfo::StringStart, location: Location::Key }
       );
     }
     let _SubState::String(list, _) = &mut state.substate else { unreachable!() };
     match token.info {
-      JsonTokenInfo::IdentifierNormal => {
+      TokenInfo::IdentifierNormal => {
         call_opt!(
           state.receiver.feed,
-          &JsonToken { c: token.c, info: JsonTokenInfo::StringNormal, location: JsonLocation::Key }
+          &Token { c: token.c, info: TokenInfo::StringNormal, location: Location::Key }
         );
         call_opt!(state.receiver.string_append, token.c);
         if let Some(list) = list {
           list.push(token.c);
         }
       }
-      JsonTokenInfo::IdentifierEscapeStart(done, _) => {
+      TokenInfo::IdentifierEscapeStart(done, _) => {
         call_opt!(
           state.receiver.feed,
-          &JsonToken {
+          &Token {
             c: token.c,
             info: if done {
-              JsonTokenInfo::StringEscapeStart
+              TokenInfo::StringEscapeStart
             } else {
-              JsonTokenInfo::StringEscapeUnicodeStart
+              TokenInfo::StringEscapeUnicodeStart
             },
-            location: JsonLocation::Key,
+            location: Location::Key,
           }
         );
       }
-      JsonTokenInfo::IdentifierEscape(c, idx) => {
+      TokenInfo::IdentifierEscape(c, idx) => {
         call_opt!(
           state.receiver.feed,
-          &JsonToken {
+          &Token {
             c: token.c,
-            info: JsonTokenInfo::StringEscapeUnicode(c, idx),
-            location: JsonLocation::Key,
+            info: TokenInfo::StringEscapeUnicode(c, idx),
+            location: Location::Key,
           }
         );
         if let Some(c) = c {
@@ -391,13 +404,13 @@ impl JsonEventEmitter {
     }
     Ok(())
   }
-  pub fn _feed_object(&mut self, token: JsonToken) -> Result<(), JsonParserError> {
+  pub fn _feed_object(&mut self, token: Token) -> Result<(), EmitterError> {
     let need_save = self._need_save();
     let state = unsafe { self.stack.last_mut().unwrap_unchecked() };
     if let _SubState::None = &state.substate {
-      assert!(matches!(token.info, JsonTokenInfo::ObjectStart));
+      assert!(matches!(token.info, TokenInfo::ObjectStart));
       if !state.receiver.accept_object {
-        return Err("object is rejected");
+        return Err(EmitterError::TypeRejected("object is rejected"));
       }
       let subreceiver = &state.receiver.object;
       let save = need_save || state.receiver.save.is_some();
@@ -413,14 +426,14 @@ impl JsonEventEmitter {
       });
       call_opt_once!(state.receiver.start);
       call_opt!(state.receiver.feed, &token);
-      self.stack.push(_State { receiver: JsonEventReceiver::new_all(), substate: _SubState::None });
+      self.stack.push(_State { receiver: EventReceiver::new_all(), substate: _SubState::None });
       return Ok(());
     }
     call_opt!(state.receiver.feed, &token);
     let _SubState::Object(obj) = &mut state.substate else { unreachable!() };
     match token.info {
-      JsonTokenInfo::ObjectStart => unreachable!(),
-      JsonTokenInfo::ObjectEnd => {
+      TokenInfo::ObjectStart => unreachable!(),
+      TokenInfo::ObjectEnd => {
         if let Some(key) = obj.key.take() {
           let value = std::mem::replace(&mut obj.child, JsonValue::NULL);
           call_opt!(state.receiver.object.set, &key, &value);
@@ -434,7 +447,7 @@ impl JsonEventEmitter {
           self._end_value_nosave();
         }
       }
-      JsonTokenInfo::ObjectNext => {
+      TokenInfo::ObjectNext => {
         if let Some(key) = obj.key.take() {
           let value = std::mem::replace(&mut obj.child, JsonValue::NULL);
           call_opt!(state.receiver.object.set, &key, &value);
@@ -446,11 +459,9 @@ impl JsonEventEmitter {
         obj.key = None;
         obj.child = JsonValue::NULL;
         obj.save_child = obj.save_key;
-        self
-          .stack
-          .push(_State { receiver: JsonEventReceiver::new_all(), substate: _SubState::None });
+        self.stack.push(_State { receiver: EventReceiver::new_all(), substate: _SubState::None });
       }
-      JsonTokenInfo::ObjectValueStart => {
+      TokenInfo::ObjectValueStart => {
         if let JsonValue::STRING(s) = std::mem::replace(&mut obj.child, JsonValue::NULL) {
           obj.key = Some(s);
         }
@@ -461,20 +472,20 @@ impl JsonEventEmitter {
           .subreceiver
           .as_mut()
           .and_then(|f| f(&obj.key.as_ref().unwrap()))
-          .unwrap_or_else(JsonEventReceiver::new_all);
+          .unwrap_or_else(EventReceiver::new_all);
         self.stack.push(_State { receiver: next_receiver, substate: _SubState::None })
       }
       _ => unreachable!(),
     }
     Ok(())
   }
-  pub fn _feed_array(&mut self, token: JsonToken) -> Result<(), JsonParserError> {
+  pub fn _feed_array(&mut self, token: Token) -> Result<(), EmitterError> {
     let need_save = self._need_save();
     let state = unsafe { self.stack.last_mut().unwrap_unchecked() };
     if let _SubState::None = &state.substate {
-      assert!(matches!(token.info, JsonTokenInfo::ArrayStart));
+      assert!(matches!(token.info, TokenInfo::ArrayStart));
       if !state.receiver.accept_array {
-        return Err("array is rejected");
+        return Err(EmitterError::TypeRejected("array is rejected"));
       }
       let save = need_save || state.receiver.save.is_some();
       let save_child = save || state.receiver.array.set.is_some();
@@ -492,15 +503,15 @@ impl JsonEventEmitter {
         .subreceiver
         .as_mut()
         .and_then(|f| f(0))
-        .unwrap_or_else(JsonEventReceiver::new_all);
+        .unwrap_or_else(EventReceiver::new_all);
       self.stack.push(_State { receiver: subreceiver, substate: _SubState::None });
       return Ok(());
     }
     call_opt!(state.receiver.feed, &token);
     let _SubState::Array(arr) = &mut state.substate else { unreachable!() };
     match token.info {
-      JsonTokenInfo::ArrayStart => unreachable!(),
-      JsonTokenInfo::ArrayNext => {
+      TokenInfo::ArrayStart => unreachable!(),
+      TokenInfo::ArrayNext => {
         if let Some(child) = arr.child.take() {
           call_opt!(state.receiver.array.set, arr.index, &child);
           arr.array.as_mut().unwrap().push(child);
@@ -513,10 +524,10 @@ impl JsonEventEmitter {
           .subreceiver
           .as_mut()
           .and_then(|f| f(arr.index))
-          .unwrap_or_else(JsonEventReceiver::new_all);
+          .unwrap_or_else(EventReceiver::new_all);
         self.stack.push(_State { receiver: next_receiver, substate: _SubState::None });
       }
-      JsonTokenInfo::ArrayEnd => {
+      TokenInfo::ArrayEnd => {
         if let Some(child) = arr.child.take() {
           call_opt!(state.receiver.array.set, arr.index, &child);
           arr.array.as_mut().unwrap().push(child);
@@ -533,15 +544,20 @@ impl JsonEventEmitter {
     }
     Ok(())
   }
+}
+impl EventEmitter {
+  pub fn new(receiver: EventReceiver) -> Self {
+    Self { stack: vec![_State { receiver, substate: _SubState::None }] }
+  }
 
-  pub fn feed_one(&mut self, token: JsonToken) -> Result<(), JsonParserError> {
+  pub fn feed_one(&mut self, token: Token) -> Result<(), EmitterError> {
     let Some(state) = self.stack.last_mut() else {
       return Ok(());
     };
 
     if let _SubState::Number(list) = &state.substate {
       // let (number_rec, int_rec) = (&state.receiver.number, &state.receiver.integer);
-      if !matches!(token.info.get_root_info(), JsonTokenRootInfo::Number) {
+      if !matches!(token.info.get_root_info(), TokenRootInfo::Number) {
         if let Some(list) = list {
           // saved
           if state.receiver.accept_integer {
@@ -549,7 +565,7 @@ impl JsonEventEmitter {
               call_opt_once!(state.receiver.end);
               call_opt_once!(state.receiver.integer_save, int_val);
             } else if !state.receiver.accept_number {
-              return Err("invalid integer");
+              return Err(EmitterError::InvalidInteger);
             }
           }
 
@@ -560,35 +576,35 @@ impl JsonEventEmitter {
         }
       }
     } else if let _SubState::String(list, is_identifier) = &mut state.substate {
-      if *is_identifier && !matches!(token.info.get_root_info(), JsonTokenRootInfo::Identifier) {
+      if *is_identifier && !matches!(token.info.get_root_info(), TokenRootInfo::Identifier) {
         call_opt!(
           state.receiver.feed,
-          &JsonToken { c: '"', info: JsonTokenInfo::StringEnd, location: JsonLocation::Key }
+          &Token { c: '"', info: TokenInfo::StringEnd, location: Location::Key }
         );
         if let Some(s) = list.take() {
           self._end_value(s);
         }
       }
     } else if let _SubState::None = &state.substate {
-      if matches!(token.info, JsonTokenInfo::ArrayEnd | JsonTokenInfo::ObjectEnd) {
+      if matches!(token.info, TokenInfo::ArrayEnd | TokenInfo::ObjectEnd) {
         self.stack.pop();
       }
     }
 
     match token.info.get_root_info() {
-      JsonTokenRootInfo::Number => self._feed_number(token),
-      JsonTokenRootInfo::String => self._feed_string(token),
-      JsonTokenRootInfo::Identifier => self._feed_identifier(token),
-      JsonTokenRootInfo::Object => self._feed_object(token),
-      JsonTokenRootInfo::Array => self._feed_array(token),
-      JsonTokenRootInfo::Null => self._feed_stateless(token),
-      JsonTokenRootInfo::Boolean => self._feed_stateless(token),
-      JsonTokenRootInfo::Whitespace | JsonTokenRootInfo::Eof | JsonTokenRootInfo::Comment => Ok(()),
+      TokenRootInfo::Number => self._feed_number(token),
+      TokenRootInfo::String => self._feed_string(token),
+      TokenRootInfo::Identifier => self._feed_identifier(token),
+      TokenRootInfo::Object => self._feed_object(token),
+      TokenRootInfo::Array => self._feed_array(token),
+      TokenRootInfo::Null => self._feed_stateless(token),
+      TokenRootInfo::Boolean => self._feed_stateless(token),
+      TokenRootInfo::Whitespace | TokenRootInfo::Eof | TokenRootInfo::Comment => Ok(()),
     }
   }
-  pub fn feed<Container>(&mut self, tokens: Container) -> Result<(), JsonParserError>
+  pub fn feed<Container>(&mut self, tokens: Container) -> Result<(), EmitterError>
   where
-    Container: IntoIterator<Item = JsonToken>,
+    Container: IntoIterator<Item = Token>,
   {
     for token in tokens {
       self.feed_one(token)?;
@@ -596,73 +612,83 @@ impl JsonEventEmitter {
     Ok(())
   }
 
-  pub fn parse<Container>(
-    receiver: JsonEventReceiver,
-    tokens: Container,
-  ) -> Result<(), (usize, JsonParserError)>
+  pub fn parse<Container>(receiver: EventReceiver, tokens: Container) -> Result<(), EmitterError>
   where
-    Container: IntoIterator<Item = JsonToken>,
+    Container: IntoIterator<Item = Token>,
   {
-    let mut parser = JsonEventEmitter::new(receiver);
-    let mut cnt = 0;
+    let mut parser = EventEmitter::new(receiver);
     for token in tokens {
-      if let Err(e) = parser.feed_one(token) {
-        return Err((cnt, e));
-      }
-      cnt += 1;
+      parser.feed_one(token)?;
     }
     Ok(())
   }
 }
 
-pub struct JsonEventParser {
-  emitter: JsonEventEmitter,
-  parser: JsonStreamParser,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ParserError {
+  StreamParserError(stream_parser::ParserError),
+  EmitterParserError(EmitterError),
 }
-impl JsonEventParser {
-  pub fn new(receiver: JsonEventReceiver, option: JsonOption) -> Self {
-    Self { emitter: JsonEventEmitter::new(receiver), parser: JsonStreamParser::new(option) }
+impl std::fmt::Display for ParserError {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      ParserError::StreamParserError(err) => write!(f, "{}", err),
+      ParserError::EmitterParserError(err) => write!(f, "{}", err),
+    }
   }
-  pub fn feed_one(&mut self, c: char) -> Result<(), JsonParserError> {
-    self.emitter.feed_one(self.parser.feed_one(c)?)
+}
+
+pub struct EventParser {
+  emitter: EventEmitter,
+  parser: StreamParser,
+}
+impl EventParser {
+  pub fn new(receiver: EventReceiver, option: JsonParserOption) -> Self {
+    Self { emitter: EventEmitter::new(receiver), parser: StreamParser::new(option) }
   }
-  pub fn feed(&mut self, s: &str) -> Result<(), (usize, JsonParserError)> {
-    let mut cnt = 0;
+  pub fn feed_one(&mut self, c: char) -> Result<(), ParserError> {
+    match self.parser.feed_one(c) {
+      Ok(token) => match self.emitter.feed_one(token) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(ParserError::EmitterParserError(e)),
+      },
+      Err(err) => Err(ParserError::StreamParserError(err)),
+    }
+  }
+  pub fn feed(&mut self, s: &str) -> Result<(), ParserError> {
     for c in s.chars() {
-      if let Err(e) = self.parser.feed_one(c).and_then(|token| self.emitter.feed_one(token)) {
-        return Err((cnt, e));
-      }
-      cnt += 1;
+      self.feed_one(c)?;
     }
     Ok(())
   }
-  pub fn end(&mut self) -> Result<(), JsonParserError> {
+  pub fn end(&mut self) -> Result<(), ParserError> {
     self.feed_one('\0')
   }
-
-  pub fn get_position(&self) -> JsonParserPosition {
+}
+impl StreamParserBase for EventParser {
+  fn get_position(&self) -> usize {
     self.parser.get_position()
   }
-  pub fn get_line(&self) -> JsonParserPosition {
+  fn get_line(&self) -> usize {
     self.parser.get_line()
   }
-  pub fn get_column(&self) -> JsonParserPosition {
+  fn get_column(&self) -> usize {
     self.parser.get_column()
   }
-
+  fn get_stage(&self) -> stream_parser::ParserStage {
+    self.parser.get_stage()
+  }
+}
+impl EventParser {
   pub fn parse(
-    receiver: JsonEventReceiver,
-    option: JsonOption,
+    receiver: EventReceiver,
+    option: JsonParserOption,
     str: &str,
-  ) -> Result<(), (usize, JsonParserError)> {
-    let mut parser = JsonEventParser::new(receiver, option);
-    let mut cnt = 0;
+  ) -> Result<(), ParserError> {
+    let mut parser = EventParser::new(receiver, option);
     for c in str.chars() {
-      if let Err(e) = parser.feed_one(c) {
-        return Err((cnt, e));
-      }
-      cnt += 1;
+      parser.feed_one(c)?;
     }
-    if let Err(e) = parser.end() { Err((cnt, e)) } else { Ok(()) }
+    parser.end()
   }
 }

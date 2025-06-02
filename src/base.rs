@@ -1,5 +1,5 @@
 #[derive(Default, Clone, Debug)]
-pub struct JsonOption {
+pub struct JsonParserOption {
   // << white space >>
   /**
    * whether to accept whitespace in JSON5
@@ -93,9 +93,9 @@ pub struct JsonOption {
    */
   pub accpet_multi_line_comment: bool,
 }
-impl JsonOption {
+impl JsonParserOption {
   pub fn new_jsonc() -> Self {
-    JsonOption {
+    JsonParserOption {
       // << comment >>
       accept_single_line_comment: true,
       accpet_multi_line_comment: true,
@@ -103,7 +103,7 @@ impl JsonOption {
     }
   }
   pub fn new_json5() -> Self {
-    JsonOption {
+    JsonParserOption {
       // << white space >>
       accept_json5_whitespace: true,
       // << array >>
@@ -129,16 +129,13 @@ impl JsonOption {
     }
   }
   pub fn new_full() -> Self {
-    return JsonOption {
+    return JsonParserOption {
       accept_octal_integer: true,
       accept_binary_integer: true,
       ..Self::new_json5()
     };
   }
 }
-
-pub type JsonParserPosition = u32;
-pub type JsonParserError = &'static str;
 
 #[derive(Clone, Debug)]
 pub enum JsonValue {
@@ -151,7 +148,6 @@ pub enum JsonValue {
 }
 pub type JsonArray = Vec<JsonValue>;
 pub type JsonObject = std::collections::HashMap<String, JsonValue>;
-pub type JsonArrayIndex = usize;
 
 impl Into<JsonValue> for () {
   fn into(self) -> JsonValue {

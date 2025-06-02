@@ -1,5 +1,7 @@
 use efjson::{
-  JsonEventObjectReceiver, JsonEventParser, JsonEventReceiver, JsonOption, JsonStreamParser,
+  JsonParserOption,
+  event_parser::{EventObjectReceiver, EventParser, EventReceiver},
+  stream_parser::StreamParser,
 };
 
 #[allow(dead_code)]
@@ -17,58 +19,39 @@ fn perf() {
   s += "]";
 
   let start = Instant::now();
-  let x = JsonStreamParser::parse(JsonOption::default(), &s);
+  let x = StreamParser::parse(JsonParserOption::default(), &s);
   println!("{} {}", s.len(), x.unwrap().len());
   let duration = start.elapsed();
   println!("运行时间: {:?}", duration);
 }
 
 const SRC: &'static str = r#"{
-  "null": null,
-  "true": true,
-  "false": false,
-
-  "string": "string",
-  "string_with_escape": "string with \"escape\"",
-  "string_with_unicode_escape": "string with \uD83D\uDE00",
-  "string_with_unicode": "string with 😊",
-
-  "integer": 1234,
-  "negative": -1234,
-  "number": 1234.5678,
-  "number_with_exponent": 1.234e2,
-
-  "array": [
-    "this is the first element",
-    {
-      "object": "a nesting object"
-    }
-  ],
-  "object": {
-    "1st": [],
-    "2st": {}
-  }
+"null":null,"true":true,"false":false,
+"string":"string,\"escape\",\uD83D\uDE00,😊",
+"integer":12,"negative":-12,"fraction":12.34,"exponent":1.234e2,
+"array":["1st element",{"object":"nesting"}],
+"object":{"1st":[],"2st":{}}
 }"#;
 
 #[allow(dead_code)]
 fn test_stream() {
-  for item in JsonStreamParser::parse(JsonOption::default(), SRC).unwrap() {
+  for item in StreamParser::parse(JsonParserOption::default(), SRC).unwrap() {
     println!("{:?}", item);
   }
 }
 
 #[allow(dead_code)]
 fn test_event() {
-  let receiver = JsonEventReceiver {
-    object: JsonEventObjectReceiver {
+  let receiver = EventReceiver {
+    object: EventObjectReceiver {
       set: Some(Box::new(|k, v| {
         println!("{}: {:?}", k, v);
       })),
       ..Default::default()
     },
-    ..JsonEventReceiver::new_all()
+    ..EventReceiver::new_all()
   };
-  JsonEventParser::parse(receiver, JsonOption::new_json5(), SRC).unwrap();
+  EventParser::parse(receiver, JsonParserOption::new_json5(), SRC).unwrap();
 }
 
 fn main() {
