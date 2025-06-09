@@ -1,4 +1,4 @@
-# A Streaming and Event-driven JSON Parser
+# efjson: 一个流式和事件解析的 JSON 解析器
 
 [English](./README.md) [简体中文](./README.zh.md)
 
@@ -6,7 +6,7 @@
 
 - [**Typescript**](https://github.com/DreamPast/efjson)
 
-## Features
+## 特性
 
 - 无额外依赖
 - 支持 JSON5 和 JSONC
@@ -52,7 +52,7 @@ fn main() {
 }
 ```
 
-## References
+## 引用
 
 JSON 规范：[RFC 4627 on Json](https://www.ietf.org/rfc/rfc4627.txt)
 
