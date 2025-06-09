@@ -18,7 +18,7 @@
 ### 流式解析
 
 ```rust
-use efjson_rust::{JsonOption, json_stream_parse};
+use efjson_rust::{ParserOption, StreamParser};
 fn main() {
   const SRC: &'static str = r#"{
   "null": null,
@@ -47,7 +47,7 @@ fn main() {
   }
 }"#;
   println!("{}", SRC);
-  for item in json_stream_parse(SRC, JsonOption::default()).unwrap() {
+  for item in StreamParser::parse(ParserOption::default(), SRC).unwrap() {
     println!("{:?}", item);
   }
 }
