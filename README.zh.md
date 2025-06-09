@@ -5,6 +5,7 @@
 其它编程语言:
 
 - [**Typescript**](https://github.com/DreamPast/efjson)
+- [C/C++](https://github.com/DreamPast/efjson-cpp)
 
 ## 特性
 

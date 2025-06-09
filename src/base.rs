@@ -1,5 +1,5 @@
 #[derive(Default, Clone, Debug)]
-pub struct JsonParserOption {
+pub struct ParserOption {
   // << white space >>
   /**
    * whether to accept whitespace in JSON5
@@ -40,7 +40,7 @@ pub struct JsonParserOption {
    * whether to accept JSON5 string escape
    * @example '"\\x01"', '\\v', '\\0'
    */
-  pub accpet_json5_string_escape: bool,
+  pub accept_json5_string_escape: bool,
 
   // << number >>
   /**
@@ -91,19 +91,19 @@ pub struct JsonParserOption {
   /**
    * whether to accept multi-line comment
    */
-  pub accpet_multi_line_comment: bool,
+  pub accept_multi_line_comment: bool,
 }
-impl JsonParserOption {
+impl ParserOption {
   pub fn new_jsonc() -> Self {
-    JsonParserOption {
+    ParserOption {
       // << comment >>
       accept_single_line_comment: true,
-      accpet_multi_line_comment: true,
+      accept_multi_line_comment: true,
       ..Default::default()
     }
   }
   pub fn new_json5() -> Self {
-    JsonParserOption {
+    ParserOption {
       // << white space >>
       accept_json5_whitespace: true,
       // << array >>
@@ -114,7 +114,7 @@ impl JsonParserOption {
       // << string >>
       accept_single_quote: true,
       accept_multiline_string: true,
-      accpet_json5_string_escape: true,
+      accept_json5_string_escape: true,
       // << number >>
       accept_positive_sign: true,
       accept_empty_fraction: true,
@@ -124,16 +124,73 @@ impl JsonParserOption {
       accept_hexadecimal_integer: true,
       // << comment >>
       accept_single_line_comment: true,
-      accpet_multi_line_comment: true,
+      accept_multi_line_comment: true,
       ..Default::default()
     }
   }
   pub fn new_full() -> Self {
-    return JsonParserOption {
+    return ParserOption {
       accept_octal_integer: true,
       accept_binary_integer: true,
       ..Self::new_json5()
     };
+  }
+}
+impl Into<u32> for ParserOption {
+  fn into(self) -> u32 {
+    let mut ret = 0;
+    if self.accept_json5_whitespace {
+      ret |= 0x000001;
+    }
+    if self.accept_trailing_comma_in_array {
+      ret |= 0x000002;
+    }
+    if self.accept_trailing_comma_in_object {
+      ret |= 0x000004;
+    }
+    if self.accept_identifier_key {
+      ret |= 0x000008;
+    }
+    if self.accept_single_quote {
+      ret |= 0x000010;
+    }
+    if self.accept_multiline_string {
+      ret |= 0x000020;
+    }
+    if self.accept_json5_string_escape {
+      ret |= 0x000040;
+    }
+    if self.accept_positive_sign {
+      ret |= 0x000080;
+    }
+    if self.accept_empty_fraction {
+      ret |= 0x000100;
+    }
+    if self.accept_empty_integer {
+      ret |= 0x000200;
+    }
+    if self.accept_nan {
+      ret |= 0x000400;
+    }
+    if self.accept_infinity {
+      ret |= 0x000800;
+    }
+    if self.accept_hexadecimal_integer {
+      ret |= 0x001000;
+    }
+    if self.accept_octal_integer {
+      ret |= 0x002000;
+    }
+    if self.accept_binary_integer {
+      ret |= 0x004000;
+    }
+    if self.accept_single_line_comment {
+      ret |= 0x008000;
+    }
+    if self.accept_multi_line_comment {
+      ret |= 0x010000;
+    }
+    ret
   }
 }
 

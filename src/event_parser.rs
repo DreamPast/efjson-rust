@@ -1,9 +1,7 @@
 use std::hint::unreachable_unchecked;
 
-use crate::stream_parser::{
-  self, Location, StreamParser, StreamParserBase, Token, TokenInfo, TokenRootInfo,
-};
-use crate::{JsonArray, JsonObject, JsonParserOption, JsonValue};
+use crate::stream_parser::{self, Category, Location, Stage, StreamParser, Token, TokenInfo};
+use crate::{JsonArray, JsonObject, JsonValue, ParserOption};
 
 #[derive(Default)]
 pub struct EventObjectReceiver {
@@ -332,7 +330,7 @@ impl EventEmitter {
       TokenInfo::StringEscapeUnicode(c, _) | TokenInfo::StringEscapeHex(c, _) => {
         if let Some(c) = c {
           call_opt!(state.receiver.string_append, c);
-          list.as_mut().map(|l| l.push(token.c));
+          list.as_mut().map(|l| l.push(c));
         }
       }
       _ => unreachable!(),
@@ -556,8 +554,7 @@ impl EventEmitter {
     };
 
     if let _SubState::Number(list) = &state.substate {
-      // let (number_rec, int_rec) = (&state.receiver.number, &state.receiver.integer);
-      if !matches!(token.info.get_root_info(), TokenRootInfo::Number) {
+      if !matches!(token.info.get_category(), Category::Number) {
         if let Some(list) = list {
           // saved
           if state.receiver.accept_integer {
@@ -576,7 +573,7 @@ impl EventEmitter {
         }
       }
     } else if let _SubState::String(list, is_identifier) = &mut state.substate {
-      if *is_identifier && !matches!(token.info.get_root_info(), TokenRootInfo::Identifier) {
+      if *is_identifier && !matches!(token.info.get_category(), Category::Identifier) {
         call_opt!(
           state.receiver.feed,
           &Token { c: '"', info: TokenInfo::StringEnd, location: Location::Key }
@@ -591,15 +588,15 @@ impl EventEmitter {
       }
     }
 
-    match token.info.get_root_info() {
-      TokenRootInfo::Number => self._feed_number(token),
-      TokenRootInfo::String => self._feed_string(token),
-      TokenRootInfo::Identifier => self._feed_identifier(token),
-      TokenRootInfo::Object => self._feed_object(token),
-      TokenRootInfo::Array => self._feed_array(token),
-      TokenRootInfo::Null => self._feed_stateless(token),
-      TokenRootInfo::Boolean => self._feed_stateless(token),
-      TokenRootInfo::Whitespace | TokenRootInfo::Eof | TokenRootInfo::Comment => Ok(()),
+    match token.info.get_category() {
+      Category::Number => self._feed_number(token),
+      Category::String => self._feed_string(token),
+      Category::Identifier => self._feed_identifier(token),
+      Category::Object => self._feed_object(token),
+      Category::Array => self._feed_array(token),
+      Category::Null => self._feed_stateless(token),
+      Category::Boolean => self._feed_stateless(token),
+      Category::Whitespace | Category::Eof | Category::Comment => Ok(()),
     }
   }
   pub fn feed<Container>(&mut self, tokens: Container) -> Result<(), EmitterError>
@@ -626,7 +623,7 @@ impl EventEmitter {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParserError {
-  StreamParserError(stream_parser::ParserError),
+  StreamParserError(stream_parser::StreamError),
   EmitterParserError(EmitterError),
 }
 impl std::fmt::Display for ParserError {
@@ -643,7 +640,7 @@ pub struct EventParser {
   parser: StreamParser,
 }
 impl EventParser {
-  pub fn new(receiver: EventReceiver, option: JsonParserOption) -> Self {
+  pub fn new(receiver: EventReceiver, option: ParserOption) -> Self {
     Self { emitter: EventEmitter::new(receiver), parser: StreamParser::new(option) }
   }
   pub fn feed_one(&mut self, c: char) -> Result<(), ParserError> {
@@ -665,24 +662,24 @@ impl EventParser {
     self.feed_one('\0')
   }
 }
-impl StreamParserBase for EventParser {
-  fn get_position(&self) -> usize {
+impl EventParser {
+  pub fn get_position(&self) -> usize {
     self.parser.get_position()
   }
-  fn get_line(&self) -> usize {
+  pub fn get_line(&self) -> usize {
     self.parser.get_line()
   }
-  fn get_column(&self) -> usize {
+  pub fn get_column(&self) -> usize {
     self.parser.get_column()
   }
-  fn get_stage(&self) -> stream_parser::ParserStage {
+  pub fn get_stage(&self) -> Stage {
     self.parser.get_stage()
   }
 }
 impl EventParser {
   pub fn parse(
     receiver: EventReceiver,
-    option: JsonParserOption,
+    option: ParserOption,
     str: &str,
   ) -> Result<(), ParserError> {
     let mut parser = EventParser::new(receiver, option);

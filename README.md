@@ -5,6 +5,7 @@
 Other programming languages:
 
 - [**Typescript**](https://github.com/DreamPast/efjson)
+- [C/C++](https://github.com/DreamPast/efjson-cpp)
 
 ## Features
 

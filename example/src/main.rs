@@ -1,5 +1,5 @@
 use efjson::{
-  JsonParserOption,
+  ParserOption,
   event_parser::{EventObjectReceiver, EventParser, EventReceiver},
   stream_parser::StreamParser,
 };
@@ -19,7 +19,7 @@ fn perf() {
   s += "]";
 
   let start = Instant::now();
-  let x = StreamParser::parse(JsonParserOption::default(), &s);
+  let x = StreamParser::parse(ParserOption::default(), &s);
   println!("{} {}", s.len(), x.unwrap().len());
   let duration = start.elapsed();
   println!("运行时间: {:?}", duration);
@@ -35,7 +35,8 @@ const SRC: &'static str = r#"{
 
 #[allow(dead_code)]
 fn test_stream() {
-  for item in StreamParser::parse(JsonParserOption::default(), SRC).unwrap() {
+  let tokens = StreamParser::parse(ParserOption::default(), SRC).unwrap();
+  for item in tokens {
     println!("{:?}", item);
   }
 }
@@ -51,7 +52,7 @@ fn test_event() {
     },
     ..EventReceiver::new_all()
   };
-  EventParser::parse(receiver, JsonParserOption::new_json5(), SRC).unwrap();
+  EventParser::parse(receiver, ParserOption::new_json5(), SRC).unwrap();
 }
 
 fn main() {
