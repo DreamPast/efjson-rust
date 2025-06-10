@@ -9,7 +9,6 @@ Other programming languages:
 
 ## Features
 
-- no extra dependencies
 - supports JSON5 and JSONC
 - stream parser requires minimal memory when no events are triggered
 

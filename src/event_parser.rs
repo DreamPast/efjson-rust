@@ -224,7 +224,7 @@ impl EventEmitter {
   pub fn _feed_stateless(&mut self, token: Token) -> Result<(), EmitterError> {
     let state = unsafe { self.stack.last_mut().unwrap_unchecked() };
     match token.info {
-      TokenInfo::Null(done, _) => {
+      TokenInfo::Null(_, done) => {
         if let _SubState::None = &state.substate {
           call_opt_once!(state.receiver.start);
           state.substate = _SubState::Null;
@@ -237,7 +237,7 @@ impl EventEmitter {
         }
         Ok(())
       }
-      TokenInfo::True(done, _) => {
+      TokenInfo::True(_, done) => {
         if let _SubState::None = &state.substate {
           call_opt_once!(state.receiver.start);
           state.substate = _SubState::Boolean;
@@ -250,7 +250,7 @@ impl EventEmitter {
         }
         Ok(())
       }
-      TokenInfo::False(done, _) => {
+      TokenInfo::False(_, done) => {
         if let _SubState::None = &state.substate {
           call_opt_once!(state.receiver.start);
           state.substate = _SubState::Boolean;
@@ -327,7 +327,7 @@ impl EventEmitter {
         call_opt!(state.receiver.string_append, c);
         list.as_mut().map(|l| l.push(token.c));
       }
-      TokenInfo::StringEscapeUnicode(c, _) | TokenInfo::StringEscapeHex(c, _) => {
+      TokenInfo::StringEscapeUnicode(_, c) | TokenInfo::StringEscapeHex(_, c) => {
         if let Some(c) = c {
           call_opt!(state.receiver.string_append, c);
           list.as_mut().map(|l| l.push(c));
@@ -367,7 +367,7 @@ impl EventEmitter {
           list.push(token.c);
         }
       }
-      TokenInfo::IdentifierEscapeStart(done, _) => {
+      TokenInfo::IdentifierEscapeStart(_, done) => {
         call_opt!(
           state.receiver.feed,
           &Token {
@@ -381,12 +381,12 @@ impl EventEmitter {
           }
         );
       }
-      TokenInfo::IdentifierEscape(c, idx) => {
+      TokenInfo::IdentifierEscape(idx, c) => {
         call_opt!(
           state.receiver.feed,
           &Token {
             c: token.c,
-            info: TokenInfo::StringEscapeUnicode(c, idx),
+            info: TokenInfo::StringEscapeUnicode(idx, c),
             location: Location::Key,
           }
         );

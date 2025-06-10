@@ -89,6 +89,14 @@ typedef unsigned long efjsonUint32;
 typedef size_t efjsonPosition;
 typedef unsigned efjsonStackLength;
 
+#ifdef __cplusplus
+  #define efjson_cast(T, v) (static_cast<T>(v))
+  #define efjson_reptr(T, p) (reinterpret_cast<T>(p))
+#else
+  #define efjson_cast(T, v) ((T)(v))
+  #define efjson_reptr(T, p) ((T)(p))
+#endif
+
 
 #ifdef __cplusplus
   #define EFJSON_CODE_BEGIN extern "C" {
@@ -562,6 +570,17 @@ enum efjsonOption {
    */
   efjsonOption_MULTI_LINE_COMMENT = 0x010000u
 };
+#define EFJSON_JSONC_OPTION \
+  efjson_cast(efjsonUint32, efjsonOption_SINGLE_LINE_COMMENT | efjsonOption_MULTI_LINE_COMMENT)
+#define EFJSON_JSON5_OPTION                                                                                           \
+  efjson_cast(                                                                                                        \
+    efjsonUint32, EFJSON_JSONC_OPTION | efjsonOption_JSON5_WHITESPACE | efjsonOption_TRAILING_COMMA_IN_ARRAY          \
+                    | efjsonOption_TRAILING_COMMA_IN_OBJECT | efjsonOption_IDENTIFIER_KEY | efjsonOption_SINGLE_QUOTE \
+                    | efjsonOption_MULTILINE_STRING | efjsonOption_JSON5_STRING_ESCAPE | efjsonOption_POSITIVE_SIGN   \
+                    | efjsonOption_EMPTY_FRACTION | efjsonOption_EMPTY_INTEGER | efjsonOption_NAN                     \
+                    | efjsonOption_INFINITY | efjsonOption_HEXADECIMAL_INTEGER                                        \
+  )
+#define EFJSON_ALL_OPTION efjson_cast(efjsonUint32, ~efjson_cast(efjsonUint32, 0))
 
 typedef struct efjsonStreamParser {
   efjsonPosition position, line, column;
@@ -629,14 +648,6 @@ EFJSON_CODE_END
   #include <stdlib.h>
 
 EFJSON_CODE_BEGIN
-  #ifdef __cplusplus
-    #define efjson_cast(T, v) (static_cast<T>(v))
-    #define efjson_reptr(T, p) (reinterpret_cast<T>(p))
-  #else
-    #define efjson_cast(T, v) ((T)(v))
-    #define efjson_reptr(T, p) ((T)(p))
-  #endif
-
   #define efjson_umax(T) efjson_cast(T, ~efjson_cast(T, 0))
 
   /**
@@ -2528,8 +2539,6 @@ EFJSON_PUBLIC efjsonUint8 efjson_getError(efjsonToken token) {
 
 
 EFJSON_CODE_END
-  #undef efjson_cast
-  #undef efjson_reptr
   #undef efjson_umax
   #undef efjson_assert
   #undef efjson_condexpr

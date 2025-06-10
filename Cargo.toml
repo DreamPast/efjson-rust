@@ -8,7 +8,7 @@ homepage = "https://github.com/DreamPast/efjson-rust"
 repository = "https://github.com/DreamPast/efjson-rust"
 
 [dependencies]
-
+bitflags = "2.9.1"
 
 [build-dependencies]
 cc = "1.0"

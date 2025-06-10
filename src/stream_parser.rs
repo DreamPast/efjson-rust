@@ -1,65 +1,9 @@
 mod outer {
-  #[repr(u8)]
-  pub enum TokenEnum {
-    _Error = 0,
-    _Whitespace = 1 << 4 | 0x0,
-    _Eof = 2 << 4 | 0x0,
-    _Null = 3 << 4 | 0x0,
-
-    _False = 4 << 4 | 0x0,
-    _True = 4 << 4 | 0x1,
-
-    _StringStart = 5 << 4 | 0x0,
-    _StringEnd = 5 << 4 | 0x1,
-    _StringNormal = 5 << 4 | 0x2,
-    _StringEscapeStart = 5 << 4 | 0x3,
-    _StringEscape = 5 << 4 | 0x4,
-    _StringEscapeUnicodeStart = 5 << 4 | 0x5,
-    _StringEscapeUnicode = 5 << 4 | 0x6,
-    _StringNextLine = 5 << 4 | 0x7,
-    _StringEscapeHexStart = 5 << 4 | 0x8,
-    _StringEscapeHex = 5 << 4 | 0x9,
-
-    _NumberIntegerDigit = 6 << 4 | 0x0,
-    _NumberFractionDigit = 6 << 4 | 0x1,
-    _NumberExponentDigit = 6 << 4 | 0x2,
-    _NumberIntegerSign = 6 << 4 | 0x3,
-    _NumberExponentSign = 6 << 4 | 0x4,
-    _NumberFractionStart = 6 << 4 | 0x5,
-    _NumberExponentStart = 6 << 4 | 0x6,
-    _NumberNan = 6 << 4 | 0x7,
-    _NumberInfinity = 6 << 4 | 0x8,
-    _NumberHexStart = 6 << 4 | 0x9,
-    _NumberHex = 6 << 4 | 0xA,
-    _NumberOctStart = 6 << 4 | 0xB,
-    _NumberOct = 6 << 4 | 0xC,
-    _NumberBinStart = 6 << 4 | 0xD,
-    _NumberBin = 6 << 4 | 0xE,
-
-    _ObjectStart = 7 << 4 | 0x0,
-    _ObjectNext = 7 << 4 | 0x1,
-    _ObjectValueStart = 7 << 4 | 0x2,
-    _ObjectEnd = 7 << 4 | 0x3,
-
-    _ArrayStart = 8 << 4 | 0x0,
-    _ArrayNext = 8 << 4 | 0x1,
-    _ArrayEnd = 8 << 4 | 0x2,
-
-    _IdentifierNormal = 9 << 4 | 0x0,
-    _IdentifierEscapeStart = 9 << 4 | 0x1,
-    _IdentifierEscape = 9 << 4 | 0x2,
-
-    _CommentMayStart = 10 << 4 | 0x0,
-    _CommentSingleLine = 10 << 4 | 0x1,
-    _CommentMultiLine = 10 << 4 | 0x3,
-    _CommentMultiLineEnd = 10 << 4 | 0x4,
-  }
-
   pub type StackLength = std::ffi::c_uint;
   pub type Position = usize;
   #[repr(C)]
   pub struct Token {
-    pub r#type: TokenEnum,
+    pub r#type: u8,
     pub location: super::Location,
     pub index: u8,
     pub done: u8,
@@ -219,58 +163,59 @@ pub enum Stage {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
 pub enum TokenInfo {
-  Whitespace,
-  Eof,
-  Null(bool, u8),
+  Whitespace = 1 << 4 | 0x0,
+  Eof = 2 << 4 | 0x0,
+  Null(u8, bool) = 3 << 4 | 0x0,
 
-  False(bool, u8),
-  True(bool, u8),
+  False(u8, bool) = 4 << 4 | 0x0,
+  True(u8, bool) = 4 << 4 | 0x1,
 
-  StringStart,
-  StringEnd,
-  StringNormal,
-  StringEscapeStart,
-  StringEscape(char),
-  StringEscapeUnicodeStart,
-  StringEscapeUnicode(Option<char>, u8),
-  StringNextLine,
-  StringEscapeHexStart,
-  StringEscapeHex(Option<char>, u8),
+  StringStart = 5 << 4 | 0x0,
+  StringEnd = 5 << 4 | 0x1,
+  StringNormal = 5 << 4 | 0x2,
+  StringEscapeStart = 5 << 4 | 0x3,
+  StringEscape(char) = 5 << 4 | 0x4,
+  StringEscapeUnicodeStart = 5 << 4 | 0x5,
+  StringEscapeUnicode(u8, Option<char>) = 5 << 4 | 0x6,
+  StringNextLine = 5 << 4 | 0x7,
+  StringEscapeHexStart = 5 << 4 | 0x8,
+  StringEscapeHex(u8, Option<char>) = 5 << 4 | 0x9,
 
-  NumberIntegerDigit,
-  NumberFractionDigit,
-  NumberExponentDigit,
-  NumberIntegerSign,
-  NumberExponentSign,
-  NumberFractionStart,
-  NumberExponentStart,
-  NumberNan(bool, u8),
-  NumberInfinity(bool, u8),
-  NumberHexStart,
-  NumberHex,
-  NumberOctStart,
-  NumberOct,
-  NumberBinStart,
-  NumberBin,
+  NumberIntegerDigit = 6 << 4 | 0x0,
+  NumberFractionDigit = 6 << 4 | 0x1,
+  NumberExponentDigit = 6 << 4 | 0x2,
+  NumberIntegerSign = 6 << 4 | 0x3,
+  NumberExponentSign = 6 << 4 | 0x4,
+  NumberFractionStart = 6 << 4 | 0x5,
+  NumberExponentStart = 6 << 4 | 0x6,
+  NumberNan(u8, bool) = 6 << 4 | 0x7,
+  NumberInfinity(u8, bool) = 6 << 4 | 0x8,
+  NumberHexStart = 6 << 4 | 0x9,
+  NumberHex = 6 << 4 | 0xA,
+  NumberOctStart = 6 << 4 | 0xB,
+  NumberOct = 6 << 4 | 0xC,
+  NumberBinStart = 6 << 4 | 0xD,
+  NumberBin = 6 << 4 | 0xE,
 
-  ObjectStart,
-  ObjectNext,
-  ObjectValueStart,
-  ObjectEnd,
+  ObjectStart = 7 << 4 | 0x0,
+  ObjectNext = 7 << 4 | 0x1,
+  ObjectValueStart = 7 << 4 | 0x2,
+  ObjectEnd = 7 << 4 | 0x3,
 
-  ArrayStart,
-  ArrayNext,
-  ArrayEnd,
+  ArrayStart = 8 << 4 | 0x0,
+  ArrayNext = 8 << 4 | 0x1,
+  ArrayEnd = 8 << 4 | 0x2,
 
-  IdentifierNormal,
-  IdentifierEscapeStart(bool, u8),
-  IdentifierEscape(Option<char>, u8),
+  IdentifierNormal = 9 << 4 | 0x0,
+  IdentifierEscapeStart(u8, bool) = 9 << 4 | 0x1,
+  IdentifierEscape(u8, Option<char>) = 9 << 4 | 0x2,
 
-  CommentMayStart,
-  CommentSingleLine,
-  CommentMultiLine,
-  CommentMultiLineEnd,
+  CommentMayStart = 10 << 4 | 0x0,
+  CommentSingleLine = 10 << 4 | 0x1,
+  CommentMultiLine = 10 << 4 | 0x3,
+  CommentMultiLineEnd = 10 << 4 | 0x4,
 }
 impl TokenInfo {
   pub fn get_category(&self) -> Category {
@@ -321,8 +266,8 @@ impl TokenInfo {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Token {
   pub c: char,
-  pub location: Location,
   pub info: TokenInfo,
+  pub location: Location,
 }
 
 impl StreamParser {
@@ -348,7 +293,7 @@ impl StreamParser {
   pub fn new(option: ParserOption) -> Self {
     let mut parser = std::mem::MaybeUninit::<StreamParser>::uninit();
     unsafe {
-      efjsonStreamParser_init(parser.as_mut_ptr(), option.into());
+      efjsonStreamParser_init(parser.as_mut_ptr(), option.bits());
       parser.assume_init()
     }
   }
@@ -356,7 +301,7 @@ impl StreamParser {
   pub fn feed_one(&mut self, c: char) -> Result<Token, StreamError> {
     let ctoken = unsafe { efjsonStreamParser_feedOne(self, c as u32) };
     let info = match ctoken.r#type {
-      TokenEnum::_Error => {
+      0 => {
         return Err(StreamError {
           character: c,
           position: self.get_position(),
@@ -365,95 +310,62 @@ impl StreamParser {
           kind: unsafe { std::mem::transmute(ctoken.extra as u8) },
         });
       }
-      TokenEnum::_Whitespace => TokenInfo::Whitespace,
-      TokenEnum::_Eof => TokenInfo::Eof,
-      TokenEnum::_Null => TokenInfo::Null(ctoken.done != 0, ctoken.index),
-
-      TokenEnum::_False => TokenInfo::False(ctoken.done != 0, ctoken.index),
-      TokenEnum::_True => TokenInfo::True(ctoken.done != 0, ctoken.index),
-
-      TokenEnum::_StringStart => TokenInfo::StringStart,
-      TokenEnum::_StringEnd => TokenInfo::StringEnd,
-      TokenEnum::_StringNormal => TokenInfo::StringNormal,
-      TokenEnum::_StringEscapeStart => TokenInfo::StringEscapeStart,
-      TokenEnum::_StringEscape => {
-        TokenInfo::StringEscape(unsafe { char::from_u32_unchecked(ctoken.extra) })
-      }
-      TokenEnum::_StringEscapeUnicodeStart => TokenInfo::StringEscapeUnicodeStart,
-      TokenEnum::_StringEscapeUnicode => TokenInfo::StringEscapeUnicode(
+      0x30 => TokenInfo::Null(ctoken.index, ctoken.done != 0),
+      0x40 => TokenInfo::False(ctoken.index, ctoken.done != 0),
+      0x41 => TokenInfo::True(ctoken.index, ctoken.done != 0),
+      0x54 => TokenInfo::StringEscape(unsafe { char::from_u32_unchecked(ctoken.extra) }),
+      0x56 => TokenInfo::StringEscapeUnicode(
+        ctoken.index,
         if ctoken.done != 0 {
           Some(unsafe { char::from_u32_unchecked(ctoken.extra) })
         } else {
           None
         },
-        ctoken.index,
       ),
-      TokenEnum::_StringNextLine => TokenInfo::StringNextLine,
-      TokenEnum::_StringEscapeHexStart => TokenInfo::StringEscapeHexStart,
-      TokenEnum::_StringEscapeHex => TokenInfo::StringEscapeHex(
+      0x59 => TokenInfo::StringEscapeHex(
+        ctoken.index,
         if ctoken.done != 0 {
           Some(unsafe { char::from_u32_unchecked(ctoken.extra) })
         } else {
           None
         },
-        ctoken.index,
       ),
-
-      TokenEnum::_NumberIntegerDigit => TokenInfo::NumberIntegerDigit,
-      TokenEnum::_NumberFractionDigit => TokenInfo::NumberFractionDigit,
-      TokenEnum::_NumberExponentDigit => TokenInfo::NumberExponentDigit,
-      TokenEnum::_NumberIntegerSign => TokenInfo::NumberIntegerSign,
-      TokenEnum::_NumberExponentSign => TokenInfo::NumberExponentSign,
-      TokenEnum::_NumberFractionStart => TokenInfo::NumberFractionStart,
-      TokenEnum::_NumberExponentStart => TokenInfo::NumberExponentStart,
-      TokenEnum::_NumberNan => TokenInfo::NumberNan(ctoken.done != 0, ctoken.index),
-      TokenEnum::_NumberInfinity => TokenInfo::NumberInfinity(ctoken.done != 0, ctoken.index),
-      TokenEnum::_NumberHexStart => TokenInfo::NumberHexStart,
-      TokenEnum::_NumberHex => TokenInfo::NumberHex,
-      TokenEnum::_NumberOctStart => TokenInfo::NumberOctStart,
-      TokenEnum::_NumberOct => TokenInfo::NumberOct,
-      TokenEnum::_NumberBinStart => TokenInfo::NumberBinStart,
-      TokenEnum::_NumberBin => TokenInfo::NumberBin,
-
-      TokenEnum::_ObjectStart => TokenInfo::ObjectStart,
-      TokenEnum::_ObjectNext => TokenInfo::ObjectNext,
-      TokenEnum::_ObjectValueStart => TokenInfo::ObjectValueStart,
-      TokenEnum::_ObjectEnd => TokenInfo::ObjectEnd,
-
-      TokenEnum::_ArrayStart => TokenInfo::ArrayStart,
-      TokenEnum::_ArrayNext => TokenInfo::ArrayNext,
-      TokenEnum::_ArrayEnd => TokenInfo::ArrayEnd,
-
-      TokenEnum::_IdentifierNormal => TokenInfo::IdentifierNormal,
-      TokenEnum::_IdentifierEscapeStart => {
-        TokenInfo::IdentifierEscapeStart(ctoken.done != 0, ctoken.index)
-      }
-      TokenEnum::_IdentifierEscape => TokenInfo::IdentifierEscape(
+      0x67 => TokenInfo::NumberNan(ctoken.index, ctoken.done != 0),
+      0x68 => TokenInfo::NumberInfinity(ctoken.index, ctoken.done != 0),
+      0x91 => TokenInfo::IdentifierEscapeStart(ctoken.index, ctoken.done != 0),
+      0x92 => TokenInfo::IdentifierEscape(
+        ctoken.index,
         if ctoken.done != 0 {
           Some(unsafe { char::from_u32_unchecked(ctoken.extra) })
         } else {
           None
         },
-        ctoken.index,
       ),
-
-      TokenEnum::_CommentMayStart => TokenInfo::CommentMayStart,
-      TokenEnum::_CommentSingleLine => TokenInfo::CommentSingleLine,
-      TokenEnum::_CommentMultiLine => TokenInfo::CommentMultiLine,
-      TokenEnum::_CommentMultiLineEnd => TokenInfo::CommentMultiLineEnd,
+      typ => unsafe {
+        let mut info = std::mem::zeroed::<TokenInfo>();
+        std::ptr::copy_nonoverlapping(
+          &typ as *const u8,
+          &mut info as *mut TokenInfo as *mut u8,
+          std::mem::size_of::<TokenInfo>(),
+        );
+        info
+      },
     };
     return Ok(Token { c, location: ctoken.location, info });
   }
+  pub fn end(&mut self) -> Result<Token, StreamError> {
+    self.feed_one('\0')
+  }
 
-  pub fn feed(&mut self, s: &str) -> Result<Vec<Token>, StreamError> {
+  pub fn feed_iter(&mut self, iter: impl Iterator<Item = char>) -> Result<Vec<Token>, StreamError> {
     let mut tokens = Vec::new();
-    for c in s.chars() {
+    for c in iter {
       tokens.push(self.feed_one(c)?);
     }
     Ok(tokens)
   }
-  pub fn end(&mut self) -> Result<Token, StreamError> {
-    self.feed_one('\0')
+  pub fn feed(&mut self, s: &str) -> Result<Vec<Token>, StreamError> {
+    self.feed_iter(s.chars())
   }
 }
 impl Drop for StreamParser {
@@ -470,7 +382,6 @@ impl Clone for StreamParser {
     }
   }
 }
-
 impl StreamParser {
   pub fn parse(option: ParserOption, s: &str) -> Result<Vec<Token>, StreamError> {
     let mut parser = StreamParser::new(option);
