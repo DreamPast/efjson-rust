@@ -163,7 +163,7 @@ pub enum Stage {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
+#[repr(u8, C)]
 pub enum TokenInfo {
   Whitespace = 1 << 4 | 0x0,
   Eof = 2 << 4 | 0x0,
@@ -342,13 +342,9 @@ impl StreamParser {
         },
       ),
       typ => unsafe {
-        let mut info = std::mem::zeroed::<TokenInfo>();
-        std::ptr::copy_nonoverlapping(
-          &typ as *const u8,
-          &mut info as *mut TokenInfo as *mut u8,
-          std::mem::size_of::<TokenInfo>(),
-        );
-        info
+        let mut info = std::mem::MaybeUninit::zeroed();
+        (info.as_mut_ptr() as *mut u8).write(typ);
+        info.assume_init()
       },
     };
     return Ok(Token { c, location: ctoken.location, info });
