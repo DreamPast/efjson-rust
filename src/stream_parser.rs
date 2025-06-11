@@ -46,6 +46,7 @@ mod outer {
     stack: *mut u8,
   }
 }
+
 pub use outer::StreamParser;
 use outer::*;
 
@@ -151,6 +152,11 @@ impl std::fmt::Display for StreamError {
       self.character,
       self.kind.stringify(),
     )
+  }
+}
+impl Into<Box<dyn std::error::Error + Send + Sync>> for StreamError {
+  fn into(self) -> Box<dyn std::error::Error + Send + Sync> {
+    format!("{}", self).into()
   }
 }
 
@@ -384,5 +390,21 @@ impl StreamParser {
     let mut tokens = parser.feed(s)?;
     tokens.push(parser.end()?);
     Ok(tokens)
+  }
+  pub fn parse_iter(
+    option: ParserOption,
+    iter: impl Iterator<Item = char>,
+  ) -> Result<Vec<Token>, StreamError> {
+    let mut parser = StreamParser::new(option);
+    let mut tokens = parser.feed_iter(iter)?;
+    tokens.push(parser.end()?);
+    Ok(tokens)
+  }
+  pub fn create_iter(
+    option: ParserOption,
+    iter: impl Iterator<Item = char>,
+  ) -> impl Iterator<Item = Result<Token, StreamError>> {
+    let mut parser = StreamParser::new(option);
+    iter.chain(std::iter::once('\0')).map(move |c| parser.feed_one(c))
   }
 }
