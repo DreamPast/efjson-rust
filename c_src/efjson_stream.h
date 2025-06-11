@@ -2255,7 +2255,7 @@ EFJSON_PRIVATE efjsonToken efjsonStreamParser__step(efjsonStreamParser* parser, 
       parser->substate = 1;
       token.type = efjsonType_NUMBER_HEX;
     } else if(u == 0x2E /* '.' */) token.extra = efjsonError_FRACTION_NOT_ALLOWED;
-    else if(parser->substate != 0) token.extra = efjsonError_EMPTY_INTEGER_PART;
+    else if(parser->substate == 0) token.extra = efjsonError_EMPTY_INTEGER_PART;
     else if(ul_likely(efjson__isNumberSeparator(u, parser->option & efjsonOption_JSON5_WHITESPACE)))
       efjsonStreamParser__handleNumberSeparator(parser, u, &token);
     else token.extra = efjsonError_UNEXPECTED_IN_NUMBER;
@@ -2266,7 +2266,7 @@ EFJSON_PRIVATE efjsonToken efjsonStreamParser__step(efjsonStreamParser* parser, 
       token.type = efjsonType_NUMBER_OCT;
     } else if(u == 0x65 /* 'e' */ || u == 0x45 /* 'E' */) token.extra = efjsonError_EXPONENT_NOT_ALLOWED;
     else if(u == 0x2E /* '.' */) token.extra = efjsonError_FRACTION_NOT_ALLOWED;
-    else if(parser->substate != 0) token.extra = efjsonError_EMPTY_INTEGER_PART;
+    else if(parser->substate == 0) token.extra = efjsonError_EMPTY_INTEGER_PART;
     else if(ul_likely(efjson__isNumberSeparator(u, parser->option & efjsonOption_JSON5_WHITESPACE)))
       efjsonStreamParser__handleNumberSeparator(parser, u, &token);
     else token.extra = efjsonError_UNEXPECTED_IN_NUMBER;
@@ -2277,7 +2277,7 @@ EFJSON_PRIVATE efjsonToken efjsonStreamParser__step(efjsonStreamParser* parser, 
       token.type = efjsonType_NUMBER_BIN;
     } else if(u == 0x65 /* 'e' */ || u == 0x45 /* 'E' */) token.extra = efjsonError_EXPONENT_NOT_ALLOWED;
     else if(u == 0x2E /* '.' */) token.extra = efjsonError_FRACTION_NOT_ALLOWED;
-    else if(parser->substate != 0) token.extra = efjsonError_EMPTY_INTEGER_PART;
+    else if(parser->substate == 0) token.extra = efjsonError_EMPTY_INTEGER_PART;
     else if(ul_likely(efjson__isNumberSeparator(u, parser->option & efjsonOption_JSON5_WHITESPACE)))
       efjsonStreamParser__handleNumberSeparator(parser, u, &token);
     else token.extra = efjsonError_UNEXPECTED_IN_NUMBER;
