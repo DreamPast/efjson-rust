@@ -35,8 +35,7 @@ where
 {
   fn feed_token(&mut self, token: Token) -> Result<DeserResult<Return>, DeserError> {
     if matches!(self.stage, StageEnum::Element) {
-      let res = self.subreceiver.as_mut().unwrap().feed_token(token)?;
-      match res {
+      match self.subreceiver.as_mut().unwrap().feed_token(token)? {
         DeserResult::Complete(elem) => {
           self.subreceiver.take();
           self.receiver.append(elem)?;
@@ -79,6 +78,14 @@ where
           }
           self.subreceiver = Some(self.receiver.create_element()?);
           self.stage = StageEnum::Element;
+
+          if let DeserResult::Complete(elem) =
+            self.subreceiver.as_mut().unwrap().feed_token(token)?
+          {
+            self.subreceiver.take();
+            self.receiver.append(elem)?;
+            self.stage = StageEnum::ElementEnd;
+          }
         }
         Ok(DeserResult::Continue)
       }

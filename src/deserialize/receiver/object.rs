@@ -41,46 +41,40 @@ where
 {
   fn feed_token(&mut self, token: Token) -> Result<DeserResult<Return>, DeserError> {
     match self.stage {
-      StageEnum::Key => {
-        let res = self.key_subreceiver.as_mut().unwrap().feed_token(token)?;
-        match res {
-          DeserResult::Complete(key) => {
-            self.key_subreceiver.take();
-            self.key = Some(key);
-            self.stage = StageEnum::KeyEnd;
-            return Ok(DeserResult::Continue);
-          }
-          DeserResult::CompleteWithRollback(key) => {
-            self.key_subreceiver.take();
-            self.key = Some(key);
-            self.stage = StageEnum::KeyEnd;
-            // fallthrough
-          }
-          DeserResult::Continue => {
-            return Ok(DeserResult::Continue);
-          }
-        };
-      }
-      StageEnum::Value => {
-        let res = self.value_subreceiver.as_mut().unwrap().feed_token(token)?;
-        match res {
-          DeserResult::Complete(value) => {
-            self.value_subreceiver.take();
-            self.stage = StageEnum::ValueEnd;
-            self.receiver.set(self.key.take().unwrap(), value)?;
-            return Ok(DeserResult::Continue);
-          }
-          DeserResult::CompleteWithRollback(value) => {
-            self.value_subreceiver.take();
-            self.stage = StageEnum::ValueEnd;
-            self.receiver.set(self.key.take().unwrap(), value)?;
-            // fallthrough
-          }
-          DeserResult::Continue => {
-            return Ok(DeserResult::Continue);
-          }
-        };
-      }
+      StageEnum::Key => match self.key_subreceiver.as_mut().unwrap().feed_token(token)? {
+        DeserResult::Complete(key) => {
+          self.key_subreceiver.take();
+          self.key = Some(key);
+          self.stage = StageEnum::KeyEnd;
+          return Ok(DeserResult::Continue);
+        }
+        DeserResult::CompleteWithRollback(key) => {
+          self.key_subreceiver.take();
+          self.key = Some(key);
+          self.stage = StageEnum::KeyEnd;
+          // fallthrough
+        }
+        DeserResult::Continue => {
+          return Ok(DeserResult::Continue);
+        }
+      },
+      StageEnum::Value => match self.value_subreceiver.as_mut().unwrap().feed_token(token)? {
+        DeserResult::Complete(value) => {
+          self.value_subreceiver.take();
+          self.stage = StageEnum::ValueEnd;
+          self.receiver.set(self.key.take().unwrap(), value)?;
+          return Ok(DeserResult::Continue);
+        }
+        DeserResult::CompleteWithRollback(value) => {
+          self.value_subreceiver.take();
+          self.stage = StageEnum::ValueEnd;
+          self.receiver.set(self.key.take().unwrap(), value)?;
+          // fallthrough
+        }
+        DeserResult::Continue => {
+          return Ok(DeserResult::Continue);
+        }
+      },
       _ => {}
     }
     match token.info {
@@ -106,11 +100,27 @@ where
             StageEnum::WaitKey => {
               self.stage = StageEnum::Key;
               self.key_subreceiver = Some(self.receiver.create_key()?);
+
+              if let DeserResult::Complete(key) =
+                self.key_subreceiver.as_mut().unwrap().feed_token(token)?
+              {
+                self.key_subreceiver.take();
+                self.key = Some(key);
+                self.stage = StageEnum::KeyEnd;
+              }
             }
             StageEnum::WaitValue => {
               self.stage = StageEnum::Value;
               self.value_subreceiver =
                 Some(self.receiver.create_value(self.key.as_ref().unwrap())?);
+                
+              if let DeserResult::Complete(value) =
+                self.value_subreceiver.as_mut().unwrap().feed_token(token)?
+              {
+                self.value_subreceiver.take();
+                self.stage = StageEnum::ValueEnd;
+                self.receiver.set(self.key.take().unwrap(), value)?;
+              }
             }
             _ => {
               return Err("expect object".into());
