@@ -89,9 +89,13 @@ where
         self.stage = StageEnum::End;
         Ok(DeserResult::Complete(self.receiver.end()?))
       }
+      TokenInfo::ObjectValueStart => {
+        self.stage = StageEnum::WaitValue;
+        Ok(DeserResult::Continue)
+      }
       TokenInfo::ObjectNext => {
         assert!(matches!(self.stage, StageEnum::ValueEnd));
-        self.stage = StageEnum::WaitValue;
+        self.stage = StageEnum::WaitKey;
         Ok(DeserResult::Continue)
       }
       _ => {
@@ -113,7 +117,7 @@ where
               self.stage = StageEnum::Value;
               self.value_subreceiver =
                 Some(self.receiver.create_value(self.key.as_ref().unwrap())?);
-                
+
               if let DeserResult::Complete(value) =
                 self.value_subreceiver.as_mut().unwrap().feed_token(token)?
               {
