@@ -93,7 +93,7 @@ impl Deserializer<f64> for F64Deserializer {
           }
 
           match self.list.parse::<f64>() {
-            Ok(val) => Ok(DeserResult::CompleteWithRollback(val)),
+            Ok(val) => Ok(DeserResult::CompleteWithRollback(if self.is_neg { -val } else { val })),
             Err(e) => Err(format!("parse float error: {}", e).into()),
           }
         } else {
