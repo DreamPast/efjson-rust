@@ -297,7 +297,7 @@ impl EventEmitter {
         return Err(EmitterError::TypeRejected("string is rejected"));
       }
       state.substate = _SubState::String(
-        if need_save || state.receiver.save.is_some() { Some(String::from(token.c)) } else { None },
+        if need_save || state.receiver.save.is_some() { Some(String::new()) } else { None },
         false,
       );
       call_opt_once!(state.receiver.start);
