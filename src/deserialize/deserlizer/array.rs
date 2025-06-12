@@ -9,9 +9,6 @@ impl<'a, Element> ArrayReceiverTrait<'a, Element, Vec<Element>> for VecReceiver<
 where
   Element: DefaultDeserializable<Element> + 'a,
 {
-  fn start(&mut self) -> Result<(), DeserError> {
-    Ok(())
-  }
   fn create_element(&mut self) -> Result<Box<dyn Deserializer<Element> + 'a>, DeserError> {
     Ok(Box::new(Element::default_deserializer()))
   }

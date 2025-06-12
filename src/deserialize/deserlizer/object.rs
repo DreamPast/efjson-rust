@@ -15,10 +15,6 @@ where
   Key: DefaultDeserializable<Key> + Hash + Eq + 'a,
   Value: DefaultDeserializable<Value> + 'a,
 {
-  fn start(&mut self) -> Result<(), DeserError> {
-    Ok(())
-  }
-
   fn create_key(&mut self) -> Result<Box<dyn Deserializer<Key> + 'a>, DeserError> {
     return Ok(Box::new(Key::default_deserializer()));
   }
@@ -55,10 +51,6 @@ where
   Key: DefaultDeserializable<Key> + Ord + 'a,
   Value: DefaultDeserializable<Value> + 'a,
 {
-  fn start(&mut self) -> Result<(), DeserError> {
-    Ok(())
-  }
-
   fn create_key(&mut self) -> Result<Box<dyn Deserializer<Key> + 'a>, DeserError> {
     return Ok(Box::new(Key::default_deserializer()));
   }

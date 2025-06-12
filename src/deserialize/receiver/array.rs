@@ -5,7 +5,6 @@ use crate::{
 use std::marker::PhantomData;
 
 pub trait ArrayReceiverTrait<'a, Element, Return = ()> {
-  fn start(&mut self) -> Result<(), DeserError>;
   fn create_element(&mut self) -> Result<Box<dyn Deserializer<Element> + 'a>, DeserError>;
   fn append(&mut self, element: Element) -> Result<(), DeserError>;
   fn end(&mut self) -> Result<Return, DeserError>;
@@ -57,7 +56,6 @@ where
     match token.info {
       TokenInfo::ArrayStart => {
         assert!(matches!(self.stage, StageEnum::NotStarted));
-        self.receiver.start()?;
         self.stage = StageEnum::WaitElement;
         Ok(DeserResult::Continue)
       }

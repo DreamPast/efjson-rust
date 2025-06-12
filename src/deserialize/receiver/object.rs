@@ -5,7 +5,6 @@ use crate::{
 use std::marker::PhantomData;
 
 pub trait ObjectReceiverTrait<'a, Key, Value, Return = ()> {
-  fn start(&mut self) -> Result<(), DeserError>;
   fn create_key(&mut self) -> Result<Box<dyn Deserializer<Key> + 'a>, DeserError>;
   fn create_value(&mut self, key: &Key) -> Result<Box<dyn Deserializer<Value> + 'a>, DeserError>;
   fn set(&mut self, key: Key, value: Value) -> Result<(), DeserError>;
@@ -80,7 +79,6 @@ where
     match token.info {
       TokenInfo::ObjectStart => {
         assert!(matches!(self.stage, StageEnum::NotStarted));
-        self.receiver.start()?;
         self.stage = StageEnum::WaitKey;
         Ok(DeserResult::Continue)
       }
