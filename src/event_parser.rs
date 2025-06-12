@@ -350,18 +350,12 @@ impl EventEmitter {
       );
 
       call_opt_once!(state.receiver.start);
-      call_opt!(
-        state.receiver.feed,
-        &Token { c: '"', info: TokenInfo::StringStart, location: Location::Key }
-      );
+      call_opt!(state.receiver.feed, &Token { c: '"', info: TokenInfo::StringStart });
     }
     let _SubState::String(list, _) = &mut state.substate else { unreachable!() };
     match token.info {
       TokenInfo::IdentifierNormal => {
-        call_opt!(
-          state.receiver.feed,
-          &Token { c: token.c, info: TokenInfo::StringNormal, location: Location::Key }
-        );
+        call_opt!(state.receiver.feed, &Token { c: token.c, info: TokenInfo::StringNormal });
         call_opt!(state.receiver.string_append, token.c);
         if let Some(list) = list {
           list.push(token.c);
@@ -377,18 +371,13 @@ impl EventEmitter {
             } else {
               TokenInfo::StringEscapeUnicodeStart
             },
-            location: Location::Key,
           }
         );
       }
       TokenInfo::IdentifierEscape(idx, c) => {
         call_opt!(
           state.receiver.feed,
-          &Token {
-            c: token.c,
-            info: TokenInfo::StringEscapeUnicode(idx, c),
-            location: Location::Key,
-          }
+          &Token { c: token.c, info: TokenInfo::StringEscapeUnicode(idx, c) }
         );
         if let Some(c) = c {
           call_opt!(state.receiver.string_append, c);
@@ -576,7 +565,7 @@ impl EventEmitter {
       if *is_identifier && !matches!(token.info.get_category(), Category::Identifier) {
         call_opt!(
           state.receiver.feed,
-          &Token { c: '"', info: TokenInfo::StringEnd, location: Location::Key }
+          &Token { c: '"', info: TokenInfo::StringEnd }
         );
         if let Some(s) = list.take() {
           self._end_value(s);
@@ -671,6 +660,9 @@ impl EventParser {
   }
   pub fn get_column(&self) -> usize {
     self.parser.get_column()
+  }
+  pub fn get_location(&self) -> Location {
+    self.parser.get_location()
   }
   pub fn get_stage(&self) -> Stage {
     self.parser.get_stage()

@@ -4,7 +4,7 @@ mod outer {
   #[repr(C)]
   pub struct Token {
     pub r#type: u8,
-    pub location: super::Location,
+    _dummy: u8,
     pub index: u8,
     pub done: u8,
     pub extra: u32,
@@ -24,6 +24,7 @@ mod outer {
     pub fn efjsonStreamParser_getLine(parser: *const StreamParser) -> Position;
     pub fn efjsonStreamParser_getColumn(parser: *const StreamParser) -> Position;
     pub fn efjsonStreamParser_getPosition(parser: *const StreamParser) -> Position;
+    pub fn efjsonStreamParser_getLocation(parser: *const StreamParser) -> super::Location;
     pub fn efjsonStreamParser_getStage(parser: *const StreamParser) -> std::ffi::c_int;
   }
 
@@ -62,14 +63,14 @@ pub enum ErrorKind {
   InvalidEscapedUtf,
   IncompleteSurrogatePair,
   /* << other >> */
-  CommentForbidden = 0x80,
-  Eof,
+  Eof = 0x80,
   NonwhitespaceAfterEnd,
   ContentAfterEof,
   TrailingCommaForbidden,
   Unexpected,
   WrongBracket,
   WrongColon,
+  EmptyValue,
   /* << array >> */
   CommaInEmptyArray,
   /* << object >> */
@@ -96,6 +97,10 @@ pub enum ErrorKind {
   LeadingZeroForbidden,
   PositiveSignForbidden,
   UnexpectedInNumber,
+  LoneDecimalPoint,
+  /* << comment >> */
+  CommentForbidden,
+  CommentNotClosed,
 }
 impl ErrorKind {
   pub fn stringify(self) -> &'static str {
@@ -273,7 +278,6 @@ impl TokenInfo {
 pub struct Token {
   pub c: char,
   pub info: TokenInfo,
-  pub location: Location,
 }
 
 impl StreamParser {
@@ -285,6 +289,9 @@ impl StreamParser {
   }
   pub fn get_position(&self) -> usize {
     unsafe { efjsonStreamParser_getPosition(self) as usize }
+  }
+  pub fn get_location(&self) -> Location {
+    unsafe { efjsonStreamParser_getLocation(self) }
   }
   pub fn get_stage(&self) -> Stage {
     match unsafe { efjsonStreamParser_getStage(self) } {
@@ -307,7 +314,7 @@ impl StreamParser {
   pub fn feed_one(&mut self, c: char) -> Result<Token, StreamError> {
     let ctoken = unsafe { efjsonStreamParser_feedOne(self, c as u32) };
     let info = match ctoken.r#type {
-      0 => {
+      0x00 => {
         return Err(StreamError {
           character: c,
           position: self.get_position(),
@@ -353,7 +360,7 @@ impl StreamParser {
         info.assume_init()
       },
     };
-    return Ok(Token { c, location: ctoken.location, info });
+    return Ok(Token { c, info });
   }
   pub fn end(&mut self) -> Result<Token, StreamError> {
     self.feed_one('\0')
