@@ -2,6 +2,7 @@ use crate::deserialize::{
   ArrayReceiverTrait, DefaultDeserializable, DeserError, Deserializer, create_array_deserializer,
 };
 
+#[derive(Debug)]
 struct VecReceiver<Element: DefaultDeserializable<Element>> {
   vec: Vec<Element>,
 }

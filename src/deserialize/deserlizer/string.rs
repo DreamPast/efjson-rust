@@ -2,6 +2,7 @@ use crate::deserialize::{
   DefaultDeserializable, DeserError, Deserializer, StringReceiverTrait, create_string_deserializer,
 };
 
+#[derive(Debug)]
 struct StringReceiver {
   pub string: String,
 }

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use efjson::{
   ParserOption,
-  deserialize::{deserialize},
+  deserialize::{JsonRawString, JsonRawToken, deserialize},
   event_parser::{EventObjectReceiver, EventParser, EventReceiver},
   stream_parser::StreamParser,
 };
@@ -83,12 +83,15 @@ fn test_deserializer() {
   print!("{:?}\t", deserialize::<()>(ParserOption::all(), "null"));
   print!("\n");
 
-  println!("{:?}\t", deserialize::<Vec<i32>>(ParserOption::all(), "[1,2,3,4]"));
-  println!(
+  print!("{:?}\t", deserialize::<Vec<i32>>(ParserOption::all(), "[1,2,3,4]"));
+  print!(
     "{:?}\t",
     deserialize::<HashMap<String, Option<i32>>>(ParserOption::all(), "{'a':1,'b':null}")
   );
   print!("\n");
+
+  println!("{:?}", deserialize::<JsonRawString>(ParserOption::all(), r#"{'a':12,b:[13,14]}"#));
+  println!("{:?}", deserialize::<JsonRawToken>(ParserOption::all(), r#"{'a':12,b:[13,14]}"#));
 }
 
 fn main() {

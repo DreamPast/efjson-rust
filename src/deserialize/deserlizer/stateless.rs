@@ -3,6 +3,7 @@ use crate::{
   stream_parser::TokenInfo,
 };
 
+#[derive(Debug)]
 struct StatelessDeserializer<T> {
   _phantom: std::marker::PhantomData<T>,
 }

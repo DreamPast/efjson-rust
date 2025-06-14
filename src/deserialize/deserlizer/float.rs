@@ -10,6 +10,7 @@ fn to_hexdigit(c: u8) -> u8 {
   }
 }
 
+#[derive(Debug)]
 struct F64Deserializer {
   list: String,
   is_neg: bool,
@@ -113,10 +114,10 @@ impl DefaultDeserializable<f64> for f64 {
   }
 }
 
+#[derive(Debug)]
 struct F32Deserializer {
   deserializer: F64Deserializer,
 }
-
 impl Deserializer<f32> for F32Deserializer {
   fn feed_token(
     &mut self,

@@ -6,6 +6,7 @@ use std::{
   hash::Hash,
 };
 
+#[derive(Debug)]
 struct HashMapReceiver<Key: DefaultDeserializable<Key>, Value: DefaultDeserializable<Value>> {
   map: HashMap<Key, Value>,
 }
@@ -42,6 +43,7 @@ where
   }
 }
 
+#[derive(Debug)]
 struct BTreeMapReceiver<Key: DefaultDeserializable<Key>, Value: DefaultDeserializable<Value>> {
   map: BTreeMap<Key, Value>,
 }

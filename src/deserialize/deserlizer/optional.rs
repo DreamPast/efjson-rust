@@ -3,6 +3,7 @@ use crate::{
   stream_parser::TokenInfo,
 };
 
+#[derive(Debug)]
 struct OptionReceiver<T, Deser>
 where
   Deser: Deserializer<T>,

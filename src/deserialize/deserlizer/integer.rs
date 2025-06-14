@@ -11,6 +11,7 @@ fn to_hexdigit(c: char) -> u32 {
   if cv < 0x40 { cv & 0xF } else { (cv & 0xF) + 9 }
 }
 
+#[derive(Debug)]
 struct SignedDeserializer<Signed, Unsigned> {
   limb: Unsigned,
   mul: Unsigned,
@@ -164,6 +165,7 @@ impl DefaultDeserializable<isize> for isize {
   }
 }
 
+#[derive(Debug)]
 struct UnSignedDeserializer<Unsigned> {
   limb: Unsigned,
   mul: Unsigned,
