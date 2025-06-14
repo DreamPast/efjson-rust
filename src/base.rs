@@ -41,6 +41,9 @@ bitflags::bitflags! {
     const SINGLE_LINE_COMMENT      = 0x008000;
     /** whether to accept multi-line comment */
     const MULTI_LINE_COMMENT       = 0x010000;
+    /* << other >> */
+    /** whether to allow empty json value */
+    const ALLOW_EMPTY_VALUE        = 0x020000;
   }
 }
 impl Default for ParserOption {

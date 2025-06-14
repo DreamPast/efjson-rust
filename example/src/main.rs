@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use efjson::{
   ParserOption,
-  deserialize::{self, deserialize},
+  deserialize::{deserialize},
   event_parser::{EventObjectReceiver, EventParser, EventReceiver},
   stream_parser::StreamParser,
 };

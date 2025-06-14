@@ -79,6 +79,7 @@ int main(void) {
 #define EFJSON_STREAM_H
 #include <limits.h>
 #include <stddef.h>
+#include <assert.h>
 
 
 #if UCHAR_MAX != 0xFF
@@ -100,14 +101,6 @@ typedef unsigned long efjsonUint32;
 
 typedef size_t efjsonPosition;
 typedef unsigned efjsonStackLength;
-
-#ifdef __cplusplus
-  #define efjson_cast(T, v) (static_cast<T>(v))
-  #define efjson_reptr(T, p) (reinterpret_cast<T>(p))
-#else
-  #define efjson_cast(T, v) ((T)(v))
-  #define efjson_reptr(T, p) ((T)(p))
-#endif
 
 
 #ifdef __cplusplus
@@ -180,13 +173,30 @@ EFJSON_CODE_BEGIN
   #endif
 #endif /* ul_noinline */
 
-
-#ifndef EFJSON_PUBLIC
-  #define EFJSON_PUBLIC
-#endif
-#ifndef EFJSON_PRIVATE
-  #define EFJSON_PRIVATE static
-#endif
+/**
+ * @def ul_fallthrough
+ * @brief Marks a fallthrough in a switch statement (it's used to suppress warnings).
+ */
+#if !defined(ul_fallthrough) && defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L && defined(__has_c_attribute)
+  #if __has_c_attribute(fallthrough)
+    #define ul_fallthrough [[fallthrough]]
+  #endif
+#endif /* ul_fallthrough */
+#if !defined(ul_fallthrough) && (defined(__cplusplus) && __cplusplus >= 201103L && defined(__has_cpp_attribute))
+  #if __has_cpp_attribute(fallthrough)
+    #define ul_fallthrough [[fallthrough]]
+  #endif
+#endif /* ul_fallthrough */
+#if !defined(ul_fallthrough) && !defined(UL_PEDANTIC)
+  #if defined(__has_attribute)
+    #if __has_attribute(fallthrough)
+      #define ul_fallthrough __attribute__((__fallthrough__))
+    #endif
+  #endif
+#endif /* ul_fallthrough */
+#ifndef ul_fallthrough
+  #define ul_fallthrough ((void)0)
+#endif /* ul_fallthrough */
 
 
 /**
@@ -314,6 +324,25 @@ EFJSON_CODE_BEGIN
 #ifndef EFJSON_CONF_CHECK_ESCAPE_UTF
   #define EFJSON_CONF_CHECK_ESCAPE_UTF 1
 #endif
+
+
+#ifndef EFJSON_PUBLIC
+  #define EFJSON_PUBLIC
+#endif
+#ifndef EFJSON_PRIVATE
+  #define EFJSON_PRIVATE static
+#endif
+
+#ifdef __cplusplus
+  #define efjson_cast(T, v) (static_cast<T>(v))
+  #define efjson_reptr(T, p) (reinterpret_cast<T>(p))
+#else
+  #define efjson_cast(T, v) ((T)(v))
+  #define efjson_reptr(T, p) ((T)(p))
+#endif
+
+#define efjson_assert(cond) assert(cond)
+#define efjson_condexpr(cond, expr) (efjson_assert(cond), (expr))
 
 
 #if EFJSON_CONF_EXPOSE_UNICODE
@@ -733,43 +762,11 @@ EFJSON_CODE_END
 
 
 #ifdef EFJSON_STREAM_IMPL
-  #include <assert.h>
   #include <string.h>
   #include <stdlib.h>
 
 EFJSON_CODE_BEGIN
   #define efjson_umax(T) efjson_cast(T, ~efjson_cast(T, 0))
-
-  /**
-   * @def ul_fallthrough
-   * @brief Marks a fallthrough in a switch statement (it's used to suppress warnings).
-   */
-  #if !defined(ul_fallthrough) && defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L && defined(__has_c_attribute)
-    #if __has_c_attribute(fallthrough)
-      #define ul_fallthrough [[fallthrough]]
-    #endif
-  #endif /* ul_fallthrough */
-  #if !defined(ul_fallthrough) && (defined(__cplusplus) && __cplusplus >= 201103L && defined(__has_cpp_attribute))
-    #if __has_cpp_attribute(fallthrough)
-      #define ul_fallthrough [[fallthrough]]
-    #endif
-  #endif /* ul_fallthrough */
-  #if !defined(ul_fallthrough) && !defined(UL_PEDANTIC)
-    #if defined(__has_attribute)
-      #if __has_attribute(fallthrough)
-        #define ul_fallthrough __attribute__((__fallthrough__))
-      #endif
-    #endif
-  #endif /* ul_fallthrough */
-  #ifndef ul_fallthrough
-    #define ul_fallthrough ((void)0)
-  #endif /* ul_fallthrough */
-
-  #define efjson_assert(cond) assert(cond)
-  #define efjson_condexpr(cond, expr) (efjson_assert(cond), (expr))
-
-  #ifdef EFJSON_CONF_CHECK_SIZET_OVERFLOW
-  #endif
 
 
   /******************************
@@ -2233,7 +2230,7 @@ EFJSON_PRIVATE efjsonToken efjsonStreamParser__step(efjsonStreamParser* parser, 
     ul_fallthrough;
   #endif /* EFJSON_CONF_EXTENDED_JSON */
   case efjsonVal__STRING:
-    if(u == (ul_unlikely(parser->flag & efjsonFlag__SingleQuote) ? 0x27 /* '\'' */ : 0x22 /* '"' */)) {
+    if(u == (ul_unlikely(parser->flag & efjsonFlag__SingleQuote) ? 0x27u /* '\'' */ : 0x22u /* '"' */)) {
       parser->location = efjson__nextLocation(parser->location);
       parser->state = efjsonVal__EMPTY;
       token.type = efjsonType_STRING_END;

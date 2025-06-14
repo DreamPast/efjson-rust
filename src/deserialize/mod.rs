@@ -3,7 +3,7 @@ use crate::{
   stream_parser::{StreamParser, Token, TokenInfo},
 };
 
-fn token_is_space(token: &Token) -> bool {
+pub fn token_is_space(token: &Token) -> bool {
   return matches!(
     token.info,
     TokenInfo::CommentMayStart
