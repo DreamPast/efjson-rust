@@ -1,5 +1,6 @@
 use crate::deserialize::{
-  DefaultDeserializable, DeserError, Deserializer, ObjectReceiverTrait, create_object_deserializer,
+  DefaultDeserializable, DeserError, Deserializer, ObjectReceiverDeserializer, ObjectReceiverTrait,
+  create_object_deserializer,
 };
 use std::{
   collections::{BTreeMap, HashMap},
@@ -7,7 +8,7 @@ use std::{
 };
 
 #[derive(Debug)]
-struct HashMapReceiver<Key: DefaultDeserializable<Key>, Value: DefaultDeserializable<Value>> {
+pub struct HashMapReceiver<Key: DefaultDeserializable<Key>, Value: DefaultDeserializable<Value>> {
   map: HashMap<Key, Value>,
 }
 impl<'a, Key, Value> ObjectReceiverTrait<'a, Key, Value, HashMap<Key, Value>>
@@ -38,13 +39,20 @@ where
   Key: DefaultDeserializable<Key> + Hash + Eq + 'static,
   Value: DefaultDeserializable<Value> + 'static,
 {
-  fn default_deserializer() -> impl Deserializer<HashMap<Key, Value>> {
+  type DefaultDeserializer = ObjectReceiverDeserializer<
+    'static,
+    Key,
+    Value,
+    HashMap<Key, Value>,
+    HashMapReceiver<Key, Value>,
+  >;
+  fn default_deserializer() -> Self::DefaultDeserializer {
     create_object_deserializer(HashMapReceiver { map: HashMap::new() })
   }
 }
 
 #[derive(Debug)]
-struct BTreeMapReceiver<Key: DefaultDeserializable<Key>, Value: DefaultDeserializable<Value>> {
+pub struct BTreeMapReceiver<Key: DefaultDeserializable<Key>, Value: DefaultDeserializable<Value>> {
   map: BTreeMap<Key, Value>,
 }
 impl<'a, Key, Value> ObjectReceiverTrait<'a, Key, Value, BTreeMap<Key, Value>>
@@ -75,7 +83,14 @@ where
   Key: DefaultDeserializable<Key> + Ord + 'static,
   Value: DefaultDeserializable<Value> + 'static,
 {
-  fn default_deserializer() -> impl Deserializer<BTreeMap<Key, Value>> {
+  type DefaultDeserializer = ObjectReceiverDeserializer<
+    'static,
+    Key,
+    Value,
+    BTreeMap<Key, Value>,
+    BTreeMapReceiver<Key, Value>,
+  >;
+  fn default_deserializer() -> Self::DefaultDeserializer {
     create_object_deserializer(BTreeMapReceiver { map: BTreeMap::new() })
   }
 }

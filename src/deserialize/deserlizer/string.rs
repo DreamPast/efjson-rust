@@ -1,9 +1,10 @@
 use crate::deserialize::{
-  DefaultDeserializable, DeserError, Deserializer, StringReceiverTrait, create_string_deserializer,
+  DefaultDeserializable, DeserError, StringReceiverDeserializer, StringReceiverTrait,
+  create_string_deserializer,
 };
 
 #[derive(Debug)]
-struct StringReceiver {
+pub struct StringReceiver {
   pub string: String,
 }
 impl StringReceiverTrait<String> for StringReceiver {
@@ -19,7 +20,8 @@ impl StringReceiverTrait<String> for StringReceiver {
   }
 }
 impl DefaultDeserializable<String> for String {
-  fn default_deserializer() -> impl Deserializer<String> {
+  type DefaultDeserializer = StringReceiverDeserializer<String, StringReceiver>;
+  fn default_deserializer() -> Self::DefaultDeserializer {
     create_string_deserializer(StringReceiver { string: String::new() })
   }
 }

@@ -8,4 +8,4 @@ mod string;
 mod optional;
 
 mod raw;
-pub use raw::*;
+pub use raw::{JsonRawString, JsonRawToken};

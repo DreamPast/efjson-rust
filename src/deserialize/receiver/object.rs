@@ -22,7 +22,7 @@ enum StageEnum {
   ValueEnd,
   End,
 }
-struct ObjectReceiverDeserializer<'a, Key, Value, Return, Receiver>
+pub struct ObjectReceiverDeserializer<'a, Key, Value, Return, Receiver>
 where
   Receiver: ObjectReceiverTrait<'a, Key, Value, Return>,
 {
@@ -137,7 +137,7 @@ where
 
 pub fn create_object_deserializer<'a, Key, Value, Return, Receiver>(
   receiver: Receiver,
-) -> impl Deserializer<Return> + 'a
+) -> ObjectReceiverDeserializer<'a, Key, Value, Return, Receiver>
 where
   Key: 'a,
   Value: 'a,

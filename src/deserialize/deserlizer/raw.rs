@@ -15,7 +15,7 @@ enum StageEnum {
 pub struct JsonRawString {
   pub json: String,
 }
-struct JsonRawStringDeserializer {
+pub struct JsonRawStringDeserializer {
   stage: StageEnum,
   cnt: usize,
   json: String,
@@ -108,7 +108,8 @@ impl Deserializer<JsonRawString> for JsonRawStringDeserializer {
   }
 }
 impl DefaultDeserializable<JsonRawString> for JsonRawString {
-  fn default_deserializer() -> impl Deserializer<JsonRawString> {
+  type DefaultDeserializer = JsonRawStringDeserializer;
+  fn default_deserializer() -> Self::DefaultDeserializer {
     JsonRawStringDeserializer { stage: StageEnum::NotStarted, cnt: 0, json: String::new() }
   }
 }
@@ -117,7 +118,7 @@ impl DefaultDeserializable<JsonRawString> for JsonRawString {
 pub struct JsonRawToken {
   pub tokens: Vec<Token>,
 }
-struct JsonRawTokenDeserializer {
+pub struct JsonRawTokenDeserializer {
   stage: StageEnum,
   cnt: usize,
   tokens: Vec<Token>,
@@ -210,7 +211,8 @@ impl Deserializer<JsonRawToken> for JsonRawTokenDeserializer {
   }
 }
 impl DefaultDeserializable<JsonRawToken> for JsonRawToken {
-  fn default_deserializer() -> impl Deserializer<JsonRawToken> {
+  type DefaultDeserializer = JsonRawTokenDeserializer;
+  fn default_deserializer() -> Self::DefaultDeserializer {
     JsonRawTokenDeserializer { stage: StageEnum::NotStarted, cnt: 0, tokens: Vec::new() }
   }
 }

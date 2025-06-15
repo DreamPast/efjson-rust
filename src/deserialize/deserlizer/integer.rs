@@ -12,7 +12,7 @@ fn to_hexdigit(c: char) -> u32 {
 }
 
 #[derive(Debug)]
-struct SignedDeserializer<Signed, Unsigned> {
+pub struct SignedDeserializer<Signed, Unsigned> {
   limb: Unsigned,
   mul: Unsigned,
   started: bool,
@@ -99,7 +99,8 @@ where
 }
 
 impl DefaultDeserializable<i8> for i8 {
-  fn default_deserializer() -> impl Deserializer<i8> {
+  type DefaultDeserializer = SignedDeserializer<i8, u8>;
+  fn default_deserializer() -> SignedDeserializer<i8, u8> {
     SignedDeserializer::<i8, u8> {
       limb: 0,
       mul: 10,
@@ -110,7 +111,8 @@ impl DefaultDeserializable<i8> for i8 {
   }
 }
 impl DefaultDeserializable<i16> for i16 {
-  fn default_deserializer() -> impl Deserializer<i16> {
+  type DefaultDeserializer = SignedDeserializer<i16, u16>;
+  fn default_deserializer() -> SignedDeserializer<i16, u16> {
     SignedDeserializer::<i16, u16> {
       limb: 0,
       mul: 10,
@@ -121,7 +123,8 @@ impl DefaultDeserializable<i16> for i16 {
   }
 }
 impl DefaultDeserializable<i32> for i32 {
-  fn default_deserializer() -> impl Deserializer<i32> {
+  type DefaultDeserializer = SignedDeserializer<i32, u32>;
+  fn default_deserializer() -> SignedDeserializer<i32, u32> {
     SignedDeserializer::<i32, u32> {
       limb: 0,
       mul: 10,
@@ -132,7 +135,8 @@ impl DefaultDeserializable<i32> for i32 {
   }
 }
 impl DefaultDeserializable<i64> for i64 {
-  fn default_deserializer() -> impl Deserializer<i64> {
+  type DefaultDeserializer = SignedDeserializer<i64, u64>;
+  fn default_deserializer() -> SignedDeserializer<i64, u64> {
     SignedDeserializer::<i64, u64> {
       limb: 0,
       mul: 10,
@@ -143,7 +147,8 @@ impl DefaultDeserializable<i64> for i64 {
   }
 }
 impl DefaultDeserializable<i128> for i128 {
-  fn default_deserializer() -> impl Deserializer<i128> {
+  type DefaultDeserializer = SignedDeserializer<i128, u128>;
+  fn default_deserializer() -> SignedDeserializer<i128, u128> {
     SignedDeserializer::<i128, u128> {
       limb: 0,
       mul: 10,
@@ -154,7 +159,8 @@ impl DefaultDeserializable<i128> for i128 {
   }
 }
 impl DefaultDeserializable<isize> for isize {
-  fn default_deserializer() -> impl Deserializer<isize> {
+  type DefaultDeserializer = SignedDeserializer<isize, usize>;
+  fn default_deserializer() -> SignedDeserializer<isize, usize> {
     SignedDeserializer::<isize, usize> {
       limb: 0,
       mul: 10,
@@ -166,7 +172,7 @@ impl DefaultDeserializable<isize> for isize {
 }
 
 #[derive(Debug)]
-struct UnSignedDeserializer<Unsigned> {
+pub struct UnSignedDeserializer<Unsigned> {
   limb: Unsigned,
   mul: Unsigned,
   started: bool,
@@ -236,32 +242,38 @@ where
   }
 }
 impl DefaultDeserializable<u8> for u8 {
-  fn default_deserializer() -> impl Deserializer<u8> {
+  type DefaultDeserializer = UnSignedDeserializer<u8>;
+  fn default_deserializer() -> UnSignedDeserializer<u8> {
     UnSignedDeserializer { limb: 0, mul: 10, started: false }
   }
 }
 impl DefaultDeserializable<u16> for u16 {
-  fn default_deserializer() -> impl Deserializer<u16> {
+  type DefaultDeserializer = UnSignedDeserializer<u16>;
+  fn default_deserializer() -> UnSignedDeserializer<u16> {
     UnSignedDeserializer { limb: 0, mul: 10, started: false }
   }
 }
 impl DefaultDeserializable<u32> for u32 {
-  fn default_deserializer() -> impl Deserializer<u32> {
+  type DefaultDeserializer = UnSignedDeserializer<u32>;
+  fn default_deserializer() -> UnSignedDeserializer<u32> {
     UnSignedDeserializer { limb: 0, mul: 10, started: false }
   }
 }
 impl DefaultDeserializable<u64> for u64 {
-  fn default_deserializer() -> impl Deserializer<u64> {
+  type DefaultDeserializer = UnSignedDeserializer<u64>;
+  fn default_deserializer() -> UnSignedDeserializer<u64> {
     UnSignedDeserializer { limb: 0, mul: 10, started: false }
   }
 }
 impl DefaultDeserializable<u128> for u128 {
-  fn default_deserializer() -> impl Deserializer<u128> {
+  type DefaultDeserializer = UnSignedDeserializer<u128>;
+  fn default_deserializer() -> UnSignedDeserializer<u128> {
     UnSignedDeserializer { limb: 0, mul: 10, started: false }
   }
 }
 impl DefaultDeserializable<usize> for usize {
-  fn default_deserializer() -> impl Deserializer<usize> {
+  type DefaultDeserializer = UnSignedDeserializer<usize>;
+  fn default_deserializer() -> UnSignedDeserializer<usize> {
     UnSignedDeserializer { limb: 0, mul: 10, started: false }
   }
 }

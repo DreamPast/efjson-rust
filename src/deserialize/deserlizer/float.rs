@@ -11,7 +11,7 @@ fn to_hexdigit(c: u8) -> u8 {
 }
 
 #[derive(Debug)]
-struct F64Deserializer {
+pub struct F64Deserializer {
   list: String,
   is_neg: bool,
   started: bool,
@@ -109,13 +109,14 @@ impl Deserializer<f64> for F64Deserializer {
   }
 }
 impl DefaultDeserializable<f64> for f64 {
-  fn default_deserializer() -> impl Deserializer<f64> {
+  type DefaultDeserializer = F64Deserializer;
+  fn default_deserializer() -> F64Deserializer {
     F64Deserializer { list: String::default(), started: false, is_neg: false }
   }
 }
 
 #[derive(Debug)]
-struct F32Deserializer {
+pub struct F32Deserializer {
   deserializer: F64Deserializer,
 }
 impl Deserializer<f32> for F32Deserializer {
@@ -127,7 +128,8 @@ impl Deserializer<f32> for F32Deserializer {
   }
 }
 impl DefaultDeserializable<f32> for f32 {
-  fn default_deserializer() -> impl Deserializer<f32> {
+  type DefaultDeserializer = F32Deserializer;
+  fn default_deserializer() -> F32Deserializer {
     F32Deserializer {
       deserializer: F64Deserializer { list: String::default(), started: false, is_neg: false },
     }

@@ -4,7 +4,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-struct StatelessDeserializer<T> {
+pub struct StatelessDeserializer<T> {
   _phantom: std::marker::PhantomData<T>,
 }
 
@@ -39,7 +39,8 @@ impl Deserializer<bool> for StatelessDeserializer<bool> {
   }
 }
 impl DefaultDeserializable<bool> for bool {
-  fn default_deserializer() -> impl Deserializer<bool> {
+  type DefaultDeserializer = StatelessDeserializer<bool>;
+  fn default_deserializer() -> Self::DefaultDeserializer {
     StatelessDeserializer { _phantom: std::marker::PhantomData }
   }
 }
@@ -68,7 +69,8 @@ impl Deserializer<()> for StatelessDeserializer<()> {
   }
 }
 impl DefaultDeserializable<()> for () {
-  fn default_deserializer() -> impl Deserializer<()> {
+  type DefaultDeserializer = StatelessDeserializer<()>;
+  fn default_deserializer() -> Self::DefaultDeserializer {
     StatelessDeserializer { _phantom: std::marker::PhantomData }
   }
 }

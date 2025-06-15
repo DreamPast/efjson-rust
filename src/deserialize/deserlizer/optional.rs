@@ -4,7 +4,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-struct OptionReceiver<T, Deser>
+pub struct OptionReceiver<T, Deser>
 where
   Deser: Deserializer<T>,
 {
@@ -40,7 +40,8 @@ impl<T> DefaultDeserializable<Option<T>> for Option<T>
 where
   T: DefaultDeserializable<T>,
 {
-  fn default_deserializer() -> impl Deserializer<Option<T>> {
+  type DefaultDeserializer = OptionReceiver<T, T::DefaultDeserializer>;
+  fn default_deserializer() -> Self::DefaultDeserializer {
     OptionReceiver {
       deser: T::default_deserializer(),
       started: false,

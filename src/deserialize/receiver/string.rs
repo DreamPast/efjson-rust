@@ -9,7 +9,7 @@ pub trait StringReceiverTrait<Return> {
   fn end(&mut self) -> Result<Return, DeserError>;
 }
 
-struct StringReceiverDeserializer<Return, Receiver>
+pub struct StringReceiverDeserializer<Return, Receiver>
 where
   Receiver: StringReceiverTrait<Return>,
 {
@@ -56,7 +56,9 @@ where
   }
 }
 
-pub fn create_string_deserializer<Return, Receiver>(receiver: Receiver) -> impl Deserializer<Return>
+pub fn create_string_deserializer<Return, Receiver>(
+  receiver: Receiver,
+) -> StringReceiverDeserializer<Return, Receiver>
 where
   Receiver: StringReceiverTrait<Return>,
 {

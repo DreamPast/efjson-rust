@@ -1,9 +1,10 @@
 use crate::deserialize::{
-  ArrayReceiverTrait, DefaultDeserializable, DeserError, Deserializer, create_array_deserializer,
+  ArrayReceiverDeserializer, ArrayReceiverTrait, DefaultDeserializable, DeserError, Deserializer,
+  create_array_deserializer,
 };
 
 #[derive(Debug)]
-struct VecReceiver<Element: DefaultDeserializable<Element>> {
+pub struct VecReceiver<Element: DefaultDeserializable<Element>> {
   vec: Vec<Element>,
 }
 impl<'a, Element> ArrayReceiverTrait<'a, Element, Vec<Element>> for VecReceiver<Element>
@@ -25,7 +26,9 @@ impl<Element> DefaultDeserializable<Vec<Element>> for Vec<Element>
 where
   Element: DefaultDeserializable<Element> + 'static,
 {
-  fn default_deserializer() -> impl Deserializer<Vec<Element>> {
+  type DefaultDeserializer =
+    ArrayReceiverDeserializer<'static, Element, Vec<Element>, VecReceiver<Element>>;
+  fn default_deserializer() -> Self::DefaultDeserializer {
     create_array_deserializer(VecReceiver { vec: Vec::new() })
   }
 }

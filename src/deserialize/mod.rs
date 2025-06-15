@@ -60,7 +60,8 @@ pub fn unwrap_deser_result<T>(result: Result<DeserResult<T>, DeserError>) -> Res
 }
 
 pub trait DefaultDeserializable<T> {
-  fn default_deserializer() -> impl Deserializer<T>;
+  type DefaultDeserializer: Deserializer<T>;
+  fn default_deserializer() -> Self::DefaultDeserializer;
 }
 pub fn create_default_deserializer<T: DefaultDeserializable<T>>() -> impl Deserializer<T> {
   T::default_deserializer()

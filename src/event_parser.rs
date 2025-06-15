@@ -563,10 +563,7 @@ impl EventEmitter {
       }
     } else if let _SubState::String(list, is_identifier) = &mut state.substate {
       if *is_identifier && !matches!(token.info.get_category(), Category::Identifier) {
-        call_opt!(
-          state.receiver.feed,
-          &Token { c: '"', info: TokenInfo::StringEnd }
-        );
+        call_opt!(state.receiver.feed, &Token { c: '"', info: TokenInfo::StringEnd });
         if let Some(s) = list.take() {
           self._end_value(s);
         }

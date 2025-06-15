@@ -18,7 +18,7 @@ enum StageEnum {
   ElementEnd,
   End,
 }
-struct _ArrayReceiverDeserializer<'a, Element, Return, Receiver>
+pub struct ArrayReceiverDeserializer<'a, Element, Return, Receiver>
 where
   Receiver: ArrayReceiverTrait<'a, Element, Return>,
 {
@@ -28,7 +28,7 @@ where
   _phantom: PhantomData<Return>,
 }
 impl<'a, Element, Return, Receiver> Deserializer<Return>
-  for _ArrayReceiverDeserializer<'a, Element, Return, Receiver>
+  for ArrayReceiverDeserializer<'a, Element, Return, Receiver>
 where
   Receiver: ArrayReceiverTrait<'a, Element, Return>,
 {
@@ -93,13 +93,13 @@ where
 
 pub fn create_array_deserializer<'a, Element, Return, Receiver>(
   receiver: Receiver,
-) -> impl Deserializer<Return> + 'a
+) -> ArrayReceiverDeserializer<'a, Element, Return, Receiver>
 where
   Element: 'a,
   Return: 'a,
   Receiver: ArrayReceiverTrait<'a, Element, Return> + 'a,
 {
-  _ArrayReceiverDeserializer {
+  ArrayReceiverDeserializer {
     receiver,
     subreceiver: None,
     stage: StageEnum::NotStarted,
