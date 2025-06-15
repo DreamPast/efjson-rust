@@ -92,6 +92,12 @@ fn test_deserializer() {
 
   println!("{:?}", deserialize::<JsonRawString>(ParserOption::all(), r#"{'a':12,b:[13,14]}"#));
   println!("{:?}", deserialize::<JsonRawToken>(ParserOption::all(), r#"{'a':12,b:[13,14]}"#));
+
+  print!("{:?}\t", deserialize::<(String, i32)>(ParserOption::all(), r#"["a",12]"#));
+  print!("{:?}\t", deserialize::<(String, i32)>(ParserOption::all(), r#"["a",12,]"#));
+  print!("{:?}\t", deserialize::<(String, i32)>(ParserOption::all(), r#"["a",]"#));
+  print!("{:?}\t", deserialize::<(String, i32)>(ParserOption::all(), r#"["a",12,13]"#));
+  print!("\n");
 }
 
 fn main() {
