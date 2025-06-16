@@ -240,54 +240,26 @@ pub enum TokenInfo {
 }
 impl TokenInfo {
   pub fn get_category(&self) -> Category {
-    match self {
-      TokenInfo::Whitespace => Category::Whitespace,
-      TokenInfo::Eof => Category::Eof,
-      TokenInfo::Null(_, _) | TokenInfo::False(_, _) | TokenInfo::True(_, _) => Category::Boolean,
-      TokenInfo::StringStart
-      | TokenInfo::StringEnd
-      | TokenInfo::StringNormal
-      | TokenInfo::StringEscapeStart
-      | TokenInfo::StringEscape(_)
-      | TokenInfo::StringEscapeUnicodeStart
-      | TokenInfo::StringEscapeUnicode(_, _)
-      | TokenInfo::StringNextLine
-      | TokenInfo::StringEscapeHexStart
-      | TokenInfo::StringEscapeHex(_, _) => Category::String,
-      TokenInfo::NumberIntegerDigit
-      | TokenInfo::NumberFractionDigit
-      | TokenInfo::NumberExponentDigit
-      | TokenInfo::NumberIntegerSign
-      | TokenInfo::NumberExponentSign
-      | TokenInfo::NumberFractionStart
-      | TokenInfo::NumberExponentStart
-      | TokenInfo::NumberNan(_, _)
-      | TokenInfo::NumberInfinity(_, _)
-      | TokenInfo::NumberHexStart
-      | TokenInfo::NumberHex
-      | TokenInfo::NumberOctStart
-      | TokenInfo::NumberOct
-      | TokenInfo::NumberBinStart
-      | TokenInfo::NumberBin => Category::Number,
-      TokenInfo::ObjectStart
-      | TokenInfo::ObjectNext
-      | TokenInfo::ObjectValueStart
-      | TokenInfo::ObjectEnd => Category::Object,
-      TokenInfo::ArrayStart | TokenInfo::ArrayNext | TokenInfo::ArrayEnd => Category::Array,
-      TokenInfo::IdentifierNormal
-      | TokenInfo::IdentifierEscapeStart(_, _)
-      | TokenInfo::IdentifierEscape(_, _) => Category::Identifier,
-      TokenInfo::CommentMayStart
-      | TokenInfo::CommentSingleLine
-      | TokenInfo::CommentMultiLine
-      | TokenInfo::CommentMultiLineEnd => Category::Comment,
-    }
+    unsafe { std::mem::transmute(*(self as *const TokenInfo as *const u8) >> 4) }
   }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Token {
   pub c: char,
   pub info: TokenInfo,
+}
+impl Token {
+  pub fn is_space(&self) -> bool {
+    matches!(
+      self.info,
+      TokenInfo::Whitespace
+        | TokenInfo::CommentMayStart
+        | TokenInfo::CommentMultiLine
+        | TokenInfo::CommentSingleLine
+        | TokenInfo::CommentMultiLineEnd
+        | TokenInfo::Eof
+    )
+  }
 }
 
 impl StreamParser {
