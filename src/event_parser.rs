@@ -404,7 +404,7 @@ impl EventEmitter {
       let save_value = save || subreceiver.set.is_some();
       let save_key = save_value || subreceiver.key_save.is_some();
       state.substate = _SubState::Object(_ObjectState {
-        child: JsonValue::NULL,
+        child: JsonValue::Null,
         key: None,
         save_key,
         save_value,
@@ -422,7 +422,7 @@ impl EventEmitter {
       TokenInfo::ObjectStart => unreachable!(),
       TokenInfo::ObjectEnd => {
         if let Some(key) = obj.key.take() {
-          let value = std::mem::replace(&mut obj.child, JsonValue::NULL);
+          let value = std::mem::replace(&mut obj.child, JsonValue::Null);
           call_opt!(state.receiver.object.set, &key, &value);
           if let Some(target) = obj.object.as_mut() {
             target.insert(key, value);
@@ -436,7 +436,7 @@ impl EventEmitter {
       }
       TokenInfo::ObjectNext => {
         if let Some(key) = obj.key.take() {
-          let value = std::mem::replace(&mut obj.child, JsonValue::NULL);
+          let value = std::mem::replace(&mut obj.child, JsonValue::Null);
           call_opt!(state.receiver.object.set, &key, &value);
           if let Some(target) = obj.object.as_mut() {
             target.insert(key, value);
@@ -444,12 +444,12 @@ impl EventEmitter {
         }
         call_opt!(state.receiver.object.next);
         obj.key = None;
-        obj.child = JsonValue::NULL;
+        obj.child = JsonValue::Null;
         obj.save_child = obj.save_key;
         self.stack.push(_State { receiver: EventReceiver::new_all(), substate: _SubState::None });
       }
       TokenInfo::ObjectValueStart => {
-        if let JsonValue::STRING(s) = std::mem::replace(&mut obj.child, JsonValue::NULL) {
+        if let JsonValue::String(s) = std::mem::replace(&mut obj.child, JsonValue::Null) {
           obj.key = Some(s);
         }
         obj.save_child = obj.save_value;

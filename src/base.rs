@@ -76,43 +76,43 @@ impl ParserOption {
 
 #[derive(Clone, Debug)]
 pub enum JsonValue {
-  NULL,
-  BOOL(bool),
-  NUMBER(f64),
-  STRING(String),
-  ARRAY(JsonArray),
-  OBJECT(JsonObject),
+  Null,
+  Boolean(bool),
+  Number(f64),
+  String(String),
+  Array(JsonArray),
+  Object(JsonObject),
 }
 pub type JsonArray = Vec<JsonValue>;
 pub type JsonObject = std::collections::HashMap<String, JsonValue>;
 
 impl From<()> for JsonValue {
   fn from(_: ()) -> JsonValue {
-    JsonValue::NULL
+    JsonValue::Null
   }
 }
 impl From<f64> for JsonValue {
   fn from(val: f64) -> Self {
-    JsonValue::NUMBER(val)
+    JsonValue::Number(val)
   }
 }
 impl From<bool> for JsonValue {
   fn from(val: bool) -> Self {
-    JsonValue::BOOL(val)
+    JsonValue::Boolean(val)
   }
 }
 impl From<String> for JsonValue {
   fn from(val: String) -> Self {
-    JsonValue::STRING(val)
+    JsonValue::String(val)
   }
 }
 impl From<JsonArray> for JsonValue {
   fn from(val: JsonArray) -> Self {
-    JsonValue::ARRAY(val)
+    JsonValue::Array(val)
   }
 }
 impl From<JsonObject> for JsonValue {
   fn from(val: JsonObject) -> Self {
-    JsonValue::OBJECT(val)
+    JsonValue::Object(val)
   }
 }
