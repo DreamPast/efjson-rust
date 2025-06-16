@@ -1,5 +1,5 @@
 use crate::deserialize::{
-  ArrayReceiverDeserializer, ArrayReceiverTrait, DefaultDeserializable, DeserError, Deserializer,
+  ArrayReceiverDeserializer, ArrayReceiverTrait, DefaultDeserializable, DeserError,
   create_array_deserializer,
 };
 
@@ -7,12 +7,13 @@ use crate::deserialize::{
 pub struct VecReceiver<Element: DefaultDeserializable<Element>> {
   vec: Vec<Element>,
 }
-impl<'a, Element> ArrayReceiverTrait<'a, Element, Vec<Element>> for VecReceiver<Element>
+impl<'a, Element> ArrayReceiverTrait<Element, Vec<Element>, Element::DefaultDeserializer>
+  for VecReceiver<Element>
 where
   Element: DefaultDeserializable<Element> + 'a,
 {
-  fn create_element(&mut self) -> Result<Box<dyn Deserializer<Element> + 'a>, DeserError> {
-    Ok(Box::new(Element::default_deserializer()))
+  fn create_element(&mut self) -> Result<Element::DefaultDeserializer, DeserError> {
+    Ok(Element::default_deserializer())
   }
   fn append(&mut self, element: Element) -> Result<(), DeserError> {
     self.vec.push(element);
@@ -24,10 +25,14 @@ where
 }
 impl<Element> DefaultDeserializable<Vec<Element>> for Vec<Element>
 where
-  Element: DefaultDeserializable<Element> + 'static,
+  Element: DefaultDeserializable<Element>,
 {
-  type DefaultDeserializer =
-    ArrayReceiverDeserializer<'static, Element, Vec<Element>, VecReceiver<Element>>;
+  type DefaultDeserializer = ArrayReceiverDeserializer<
+    Element,
+    Vec<Element>,
+    VecReceiver<Element>,
+    Element::DefaultDeserializer,
+  >;
   fn default_deserializer() -> Self::DefaultDeserializer {
     create_array_deserializer(VecReceiver { vec: Vec::new() })
   }

@@ -4,8 +4,8 @@ use crate::{
 };
 use std::marker::PhantomData;
 
-pub trait ArrayReceiverTrait<'a, Element, Return = ()> {
-  fn create_element(&mut self) -> Result<Box<dyn Deserializer<Element> + 'a>, DeserError>;
+pub trait ArrayReceiverTrait<Element, Return, SubDeserializer: Deserializer<Element>> {
+  fn create_element(&mut self) -> Result<SubDeserializer, DeserError>;
   fn append(&mut self, element: Element) -> Result<(), DeserError>;
   fn end(&mut self) -> Result<Return, DeserError>;
 }
@@ -18,19 +18,21 @@ enum StageEnum {
   ElementEnd,
   End,
 }
-pub struct ArrayReceiverDeserializer<'a, Element, Return, Receiver>
+pub struct ArrayReceiverDeserializer<Element, Return, Receiver, SubDeserializer>
 where
-  Receiver: ArrayReceiverTrait<'a, Element, Return>,
+  Receiver: ArrayReceiverTrait<Element, Return, SubDeserializer>,
+  SubDeserializer: Deserializer<Element>,
 {
   receiver: Receiver,
-  subreceiver: Option<Box<dyn Deserializer<Element> + 'a>>,
+  subreceiver: Option<SubDeserializer>,
   stage: StageEnum,
-  _phantom: PhantomData<Return>,
+  _phantom: PhantomData<(Return, Element)>,
 }
-impl<'a, Element, Return, Receiver> Deserializer<Return>
-  for ArrayReceiverDeserializer<'a, Element, Return, Receiver>
+impl<Element, Return, Receiver, SubDeserializer> Deserializer<Return>
+  for ArrayReceiverDeserializer<Element, Return, Receiver, SubDeserializer>
 where
-  Receiver: ArrayReceiverTrait<'a, Element, Return>,
+  Receiver: ArrayReceiverTrait<Element, Return, SubDeserializer>,
+  SubDeserializer: Deserializer<Element>,
 {
   fn feed_token(&mut self, token: Token) -> Result<DeserResult<Return>, DeserError> {
     if matches!(self.stage, StageEnum::Element) {
@@ -91,13 +93,12 @@ where
   }
 }
 
-pub fn create_array_deserializer<'a, Element, Return, Receiver>(
+pub fn create_array_deserializer<Element, Return, Receiver, SubDeserializer>(
   receiver: Receiver,
-) -> ArrayReceiverDeserializer<'a, Element, Return, Receiver>
+) -> ArrayReceiverDeserializer<Element, Return, Receiver, SubDeserializer>
 where
-  Element: 'a,
-  Return: 'a,
-  Receiver: ArrayReceiverTrait<'a, Element, Return> + 'a,
+  Receiver: ArrayReceiverTrait<Element, Return, SubDeserializer>,
+  SubDeserializer: Deserializer<Element>,
 {
   ArrayReceiverDeserializer {
     receiver,

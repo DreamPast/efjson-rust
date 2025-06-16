@@ -4,9 +4,16 @@ use crate::{
 };
 use std::marker::PhantomData;
 
-pub trait ObjectReceiverTrait<'a, Key, Value, Return = ()> {
-  fn create_key(&mut self) -> Result<Box<dyn Deserializer<Key> + 'a>, DeserError>;
-  fn create_value(&mut self, key: &Key) -> Result<Box<dyn Deserializer<Value> + 'a>, DeserError>;
+pub trait ObjectReceiverTrait<
+  Key,
+  Value,
+  Return,
+  KeyDeserializer: Deserializer<Key>,
+  ValueDeserializer: Deserializer<Value>,
+>
+{
+  fn create_key(&mut self) -> Result<KeyDeserializer, DeserError>;
+  fn create_value(&mut self, key: &Key) -> Result<ValueDeserializer, DeserError>;
   fn set(&mut self, key: Key, value: Value) -> Result<(), DeserError>;
   fn end(&mut self) -> Result<Return, DeserError>;
 }
@@ -22,21 +29,31 @@ enum StageEnum {
   ValueEnd,
   End,
 }
-pub struct ObjectReceiverDeserializer<'a, Key, Value, Return, Receiver>
-where
-  Receiver: ObjectReceiverTrait<'a, Key, Value, Return>,
+pub struct ObjectReceiverDeserializer<
+  Key,
+  Value,
+  Return,
+  Receiver,
+  KeyDeserializer,
+  ValueDeserializer,
+> where
+  Receiver: ObjectReceiverTrait<Key, Value, Return, KeyDeserializer, ValueDeserializer>,
+  KeyDeserializer: Deserializer<Key>,
+  ValueDeserializer: Deserializer<Value>,
 {
   receiver: Receiver,
-  key_subreceiver: Option<Box<dyn Deserializer<Key> + 'a>>,
-  value_subreceiver: Option<Box<dyn Deserializer<Value> + 'a>>,
+  key_subreceiver: Option<KeyDeserializer>,
+  value_subreceiver: Option<ValueDeserializer>,
   key: Option<Key>,
   stage: StageEnum,
-  _phantom: PhantomData<Return>,
+  _phantom: PhantomData<(Return, Value)>,
 }
-impl<'a, Key, Value, Return, Receiver> Deserializer<Return>
-  for ObjectReceiverDeserializer<'a, Key, Value, Return, Receiver>
+impl<Key, Value, Return, Receiver, KeyDeserializer, ValueDeserializer> Deserializer<Return>
+  for ObjectReceiverDeserializer<Key, Value, Return, Receiver, KeyDeserializer, ValueDeserializer>
 where
-  Receiver: ObjectReceiverTrait<'a, Key, Value, Return>,
+  Receiver: ObjectReceiverTrait<Key, Value, Return, KeyDeserializer, ValueDeserializer>,
+  KeyDeserializer: Deserializer<Key>,
+  ValueDeserializer: Deserializer<Value>,
 {
   fn feed_token(&mut self, token: Token) -> Result<DeserResult<Return>, DeserError> {
     match self.stage {
@@ -135,14 +152,20 @@ where
   }
 }
 
-pub fn create_object_deserializer<'a, Key, Value, Return, Receiver>(
+pub fn create_object_deserializer<
+  Key,
+  Value,
+  Return,
+  Receiver,
+  KeyDeserializer,
+  ValueDeserializer,
+>(
   receiver: Receiver,
-) -> ObjectReceiverDeserializer<'a, Key, Value, Return, Receiver>
+) -> ObjectReceiverDeserializer<Key, Value, Return, Receiver, KeyDeserializer, ValueDeserializer>
 where
-  Key: 'a,
-  Value: 'a,
-  Return: 'a,
-  Receiver: ObjectReceiverTrait<'a, Key, Value, Return> + 'a,
+  Receiver: ObjectReceiverTrait<Key, Value, Return, KeyDeserializer, ValueDeserializer>,
+  KeyDeserializer: Deserializer<Key>,
+  ValueDeserializer: Deserializer<Value>,
 {
   ObjectReceiverDeserializer {
     receiver,

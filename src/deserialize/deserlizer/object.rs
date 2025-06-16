@@ -1,5 +1,5 @@
 use crate::deserialize::{
-  DefaultDeserializable, DeserError, Deserializer, ObjectReceiverDeserializer, ObjectReceiverTrait,
+  DefaultDeserializable, DeserError, ObjectReceiverDeserializer, ObjectReceiverTrait,
   create_object_deserializer,
 };
 use std::{
@@ -11,18 +11,29 @@ use std::{
 pub struct HashMapReceiver<Key: DefaultDeserializable<Key>, Value: DefaultDeserializable<Value>> {
   map: HashMap<Key, Value>,
 }
-impl<'a, Key, Value> ObjectReceiverTrait<'a, Key, Value, HashMap<Key, Value>>
-  for HashMapReceiver<Key, Value>
+impl<Key, Value>
+  ObjectReceiverTrait<
+    Key,
+    Value,
+    HashMap<Key, Value>,
+    <Key as DefaultDeserializable<Key>>::DefaultDeserializer,
+    <Value as DefaultDeserializable<Value>>::DefaultDeserializer,
+  > for HashMapReceiver<Key, Value>
 where
-  Key: DefaultDeserializable<Key> + Hash + Eq + 'a,
-  Value: DefaultDeserializable<Value> + 'a,
+  Key: DefaultDeserializable<Key> + Hash + Eq,
+  Value: DefaultDeserializable<Value>,
 {
-  fn create_key(&mut self) -> Result<Box<dyn Deserializer<Key> + 'a>, DeserError> {
-    return Ok(Box::new(Key::default_deserializer()));
+  fn create_key(
+    &mut self,
+  ) -> Result<<Key as DefaultDeserializable<Key>>::DefaultDeserializer, DeserError> {
+    return Ok(Key::default_deserializer());
   }
 
-  fn create_value(&mut self, _key: &Key) -> Result<Box<dyn Deserializer<Value> + 'a>, DeserError> {
-    return Ok(Box::new(Value::default_deserializer()));
+  fn create_value(
+    &mut self,
+    _key: &Key,
+  ) -> Result<<Value as DefaultDeserializable<Value>>::DefaultDeserializer, DeserError> {
+    return Ok(Value::default_deserializer());
   }
 
   fn set(&mut self, key: Key, value: Value) -> Result<(), DeserError> {
@@ -40,11 +51,12 @@ where
   Value: DefaultDeserializable<Value> + 'static,
 {
   type DefaultDeserializer = ObjectReceiverDeserializer<
-    'static,
     Key,
     Value,
     HashMap<Key, Value>,
     HashMapReceiver<Key, Value>,
+    <Key as DefaultDeserializable<Key>>::DefaultDeserializer,
+    <Value as DefaultDeserializable<Value>>::DefaultDeserializer,
   >;
   fn default_deserializer() -> Self::DefaultDeserializer {
     create_object_deserializer(HashMapReceiver { map: HashMap::new() })
@@ -55,18 +67,29 @@ where
 pub struct BTreeMapReceiver<Key: DefaultDeserializable<Key>, Value: DefaultDeserializable<Value>> {
   map: BTreeMap<Key, Value>,
 }
-impl<'a, Key, Value> ObjectReceiverTrait<'a, Key, Value, BTreeMap<Key, Value>>
-  for BTreeMapReceiver<Key, Value>
+impl<Key, Value>
+  ObjectReceiverTrait<
+    Key,
+    Value,
+    BTreeMap<Key, Value>,
+    <Key as DefaultDeserializable<Key>>::DefaultDeserializer,
+    <Value as DefaultDeserializable<Value>>::DefaultDeserializer,
+  > for BTreeMapReceiver<Key, Value>
 where
-  Key: DefaultDeserializable<Key> + Ord + 'a,
-  Value: DefaultDeserializable<Value> + 'a,
+  Key: DefaultDeserializable<Key> + Ord,
+  Value: DefaultDeserializable<Value>,
 {
-  fn create_key(&mut self) -> Result<Box<dyn Deserializer<Key> + 'a>, DeserError> {
-    return Ok(Box::new(Key::default_deserializer()));
+  fn create_key(
+    &mut self,
+  ) -> Result<<Key as DefaultDeserializable<Key>>::DefaultDeserializer, DeserError> {
+    return Ok(Key::default_deserializer());
   }
 
-  fn create_value(&mut self, _key: &Key) -> Result<Box<dyn Deserializer<Value> + 'a>, DeserError> {
-    return Ok(Box::new(Value::default_deserializer()));
+  fn create_value(
+    &mut self,
+    _key: &Key,
+  ) -> Result<<Value as DefaultDeserializable<Value>>::DefaultDeserializer, DeserError> {
+    return Ok(Value::default_deserializer());
   }
 
   fn set(&mut self, key: Key, value: Value) -> Result<(), DeserError> {
@@ -80,15 +103,16 @@ where
 }
 impl<Key, Value> DefaultDeserializable<BTreeMap<Key, Value>> for BTreeMap<Key, Value>
 where
-  Key: DefaultDeserializable<Key> + Ord + 'static,
-  Value: DefaultDeserializable<Value> + 'static,
+  Key: DefaultDeserializable<Key> + Ord,
+  Value: DefaultDeserializable<Value>,
 {
   type DefaultDeserializer = ObjectReceiverDeserializer<
-    'static,
     Key,
     Value,
     BTreeMap<Key, Value>,
     BTreeMapReceiver<Key, Value>,
+    <Key as DefaultDeserializable<Key>>::DefaultDeserializer,
+    <Value as DefaultDeserializable<Value>>::DefaultDeserializer,
   >;
   fn default_deserializer() -> Self::DefaultDeserializer {
     create_object_deserializer(BTreeMapReceiver { map: BTreeMap::new() })
