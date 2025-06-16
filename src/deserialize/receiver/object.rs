@@ -104,12 +104,14 @@ where
         self.stage = StageEnum::Key;
         self.key_subreceiver = Some(self.receiver.create_key()?);
 
-        if let DeserResult::Complete(key) =
-          self.key_subreceiver.as_mut().unwrap().feed_token(token)?
-        {
-          self.key_subreceiver.take();
-          self.key = Some(key);
-          self.stage = StageEnum::KeyEnd;
+        match self.key_subreceiver.as_mut().unwrap().feed_token(token)? {
+          DeserResult::Complete(key) => {
+            self.key_subreceiver.take();
+            self.key = Some(key);
+            self.stage = StageEnum::KeyEnd;
+          }
+          DeserResult::CompleteWithRollback(_) => unreachable!(),
+          DeserResult::Continue => {}
         }
       }
       return Ok(DeserResult::Continue);
@@ -119,12 +121,14 @@ where
         self.stage = StageEnum::Value;
         self.value_subreceiver = Some(self.receiver.create_value(self.key.as_ref().unwrap())?);
 
-        if let DeserResult::Complete(value) =
-          self.value_subreceiver.as_mut().unwrap().feed_token(token)?
-        {
-          self.value_subreceiver.take();
-          self.stage = StageEnum::ValueEnd;
-          self.receiver.set(self.key.take().unwrap(), value)?;
+        match self.value_subreceiver.as_mut().unwrap().feed_token(token)? {
+          DeserResult::Complete(value) => {
+            self.value_subreceiver.take();
+            self.stage = StageEnum::ValueEnd;
+            self.receiver.set(self.key.take().unwrap(), value)?;
+          }
+          DeserResult::CompleteWithRollback(_) => unreachable!(),
+          DeserResult::Continue => {}
         }
       }
       return Ok(DeserResult::Continue);

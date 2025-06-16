@@ -63,10 +63,14 @@ where
         }
         self.subreceiver = Some(self.receiver.create_element()?);
         self.stage = StageEnum::Element;
-        if let DeserResult::Complete(elem) = self.subreceiver.as_mut().unwrap().feed_token(token)? {
-          self.subreceiver.take();
-          self.receiver.append(elem)?;
-          self.stage = StageEnum::ElementEnd;
+        match self.subreceiver.as_mut().unwrap().feed_token(token)? {
+          DeserResult::Complete(elem) => {
+            self.subreceiver.take();
+            self.receiver.append(elem)?;
+            self.stage = StageEnum::ElementEnd;
+          }
+          DeserResult::CompleteWithRollback(_) => unreachable!(),
+          DeserResult::Continue => {}
         }
       }
       return Ok(DeserResult::Continue);
