@@ -3,277 +3,153 @@ use crate::{
   stream_parser::{Token, TokenInfo},
 };
 
-fn to_digit(c: char) -> u32 {
-  (c as u32) & 0xF
-}
-fn to_hexdigit(c: char) -> u32 {
-  let cv = c as u32;
-  if cv < 0x40 { cv & 0xF } else { (cv & 0xF) + 9 }
+pub struct IntegerDeserializer {
+  list: String,
+  radix: u32,
 }
 
-#[derive(Debug)]
-pub struct SignedDeserializer<Signed, Unsigned> {
-  limb: Unsigned,
-  mul: Unsigned,
-  started: bool,
-  is_neg: bool,
-  _phantom: std::marker::PhantomData<Signed>,
-}
-impl<Signed, Unsigned> Deserializer<Signed> for SignedDeserializer<Signed, Unsigned>
-where
-  Signed: num_traits::PrimInt + num_traits::Signed + num_traits::NumCast,
-  Unsigned: num_traits::PrimInt + num_traits::Unsigned + num_traits::NumCast,
-{
-  fn feed_token(&mut self, token: Token) -> Result<DeserResult<Signed>, DeserError> {
-    match token.info {
-      TokenInfo::NumberIntegerDigit | TokenInfo::NumberOct | TokenInfo::NumberBin => {
-        self.started = true;
-        let d = Unsigned::from(to_digit(token.c)).unwrap();
-        self.limb = self.limb.checked_mul(&self.mul).ok_or("integer overflow")?;
-        self.limb = self.limb.checked_add(&d).ok_or("integer overflow")?;
-        Ok(DeserResult::Continue)
-      }
-      TokenInfo::NumberIntegerSign => {
-        self.started = true;
-        self.is_neg = token.c == '-';
-        Ok(DeserResult::Continue)
-      }
-      TokenInfo::NumberFractionDigit
-      | TokenInfo::NumberExponentDigit
-      | TokenInfo::NumberFractionStart
-      | TokenInfo::NumberExponentStart
-      | TokenInfo::NumberExponentSign => Err("not an integer".into()),
-      TokenInfo::NumberNan(_, _) => Err("NaN is not an integer".into()),
-      TokenInfo::NumberInfinity(_, _) => Err("Infinity is not an integer".into()),
-      TokenInfo::NumberHexStart => {
-        self.started = true;
-        self.mul = Unsigned::from(16).unwrap();
-        Ok(DeserResult::Continue)
-      }
-      TokenInfo::NumberHex => {
-        self.started = true;
-        let d = Unsigned::from(to_hexdigit(token.c)).unwrap();
-        self.limb = self.limb.checked_mul(&self.mul).ok_or("integer overflow")?;
-        self.limb = self.limb.checked_add(&d).ok_or("integer overflow")?;
-        Ok(DeserResult::Continue)
-      }
-      TokenInfo::NumberOctStart => {
-        self.started = true;
-        self.mul = Unsigned::from(8).unwrap();
-        Ok(DeserResult::Continue)
-      }
-      TokenInfo::NumberBinStart => {
-        self.started = true;
-        self.mul = Unsigned::from(2).unwrap();
-        Ok(DeserResult::Continue)
-      }
-      _ => {
-        if self.started {
-          if self.is_neg {
-            if self.limb
-              >= Unsigned::from(Signed::max_value()).unwrap().add(Unsigned::from(1).unwrap())
-            {
-              Err("integer overflow".into())
-            } else if self.limb == Unsigned::zero() {
-              Err("negative zero is not allowed".into())
+macro_rules! signed_deserializer {
+  ($typ: ty) => {
+    impl Deserializer<$typ> for IntegerDeserializer {
+      fn feed_token(&mut self, token: Token) -> Result<DeserResult<$typ>, DeserError> {
+        match token.info {
+          TokenInfo::NumberIntegerDigit
+          | TokenInfo::NumberOct
+          | TokenInfo::NumberBin
+          | TokenInfo::NumberHex => {
+            self.list.push(token.c);
+            Ok(DeserResult::Continue)
+          }
+          TokenInfo::NumberIntegerSign => {
+            self.list.push(token.c);
+            Ok(DeserResult::Continue)
+          }
+          TokenInfo::NumberFractionDigit
+          | TokenInfo::NumberExponentDigit
+          | TokenInfo::NumberFractionStart
+          | TokenInfo::NumberExponentStart
+          | TokenInfo::NumberExponentSign => Err("not an integer".into()),
+          TokenInfo::NumberNan(_, _) => Err("NaN is not an integer".into()),
+          TokenInfo::NumberInfinity(_, _) => Err("Infinity is not an integer".into()),
+          TokenInfo::NumberHexStart => {
+            self.list.clear();
+            self.radix = 16;
+            Ok(DeserResult::Continue)
+          }
+          TokenInfo::NumberOctStart => {
+            self.list.clear();
+            self.radix = 8;
+            Ok(DeserResult::Continue)
+          }
+          TokenInfo::NumberBinStart => {
+            self.list.clear();
+            self.radix = 2;
+            Ok(DeserResult::Continue)
+          }
+          _ => {
+            if !self.list.is_empty() {
+              match <$typ>::from_str_radix(&self.list, self.radix) {
+                Ok(val) => Ok(DeserResult::CompleteWithRollback(val)),
+                Err(e) => Err(e.into()),
+              }
             } else {
-              Ok(DeserResult::CompleteWithRollback(-Signed::from(self.limb).unwrap()))
-            }
-          } else {
-            if self.limb >= Unsigned::from(Signed::max_value()).unwrap() {
-              Err("integer overflow".into())
-            } else {
-              Ok(DeserResult::CompleteWithRollback(Signed::from(self.limb).unwrap()))
+              if token_is_space(&token) {
+                Ok(DeserResult::Continue)
+              } else {
+                Err("expect integer".into())
+              }
             }
           }
-        } else {
-          if token_is_space(&token) {
+        }
+      }
+    }
+    impl DefaultDeserializable<$typ> for $typ {
+      type DefaultDeserializer = IntegerDeserializer;
+      fn default_deserializer() -> IntegerDeserializer {
+        IntegerDeserializer { list: String::new(), radix: 10 }
+      }
+    }
+  };
+}
+
+signed_deserializer! {i8}
+signed_deserializer! {i16}
+signed_deserializer! {i32}
+signed_deserializer! {i64}
+signed_deserializer! {i128}
+signed_deserializer! {isize}
+
+macro_rules! unsigned_deserializer {
+  ($typ: ty) => {
+    impl Deserializer<$typ> for IntegerDeserializer {
+      fn feed_token(&mut self, token: Token) -> Result<DeserResult<$typ>, DeserError> {
+        match token.info {
+          TokenInfo::NumberIntegerDigit
+          | TokenInfo::NumberOct
+          | TokenInfo::NumberBin
+          | TokenInfo::NumberHex => {
+            self.list.push(token.c);
             Ok(DeserResult::Continue)
-          } else {
-            Err("expect integer".into())
+          }
+          TokenInfo::NumberIntegerSign => {
+            if token.c == '+' {
+              self.list.push(token.c);
+              Ok(DeserResult::Continue)
+            } else {
+              Err("unsigned integer cannot be negative".into())
+            }
+          }
+          TokenInfo::NumberFractionDigit
+          | TokenInfo::NumberExponentDigit
+          | TokenInfo::NumberFractionStart
+          | TokenInfo::NumberExponentStart
+          | TokenInfo::NumberExponentSign => Err("not an integer".into()),
+          TokenInfo::NumberNan(_, _) => Err("NaN is not an integer".into()),
+          TokenInfo::NumberInfinity(_, _) => Err("Infinity is not an integer".into()),
+          TokenInfo::NumberHexStart => {
+            self.list.clear();
+            self.radix = 16;
+            Ok(DeserResult::Continue)
+          }
+          TokenInfo::NumberOctStart => {
+            self.list.clear();
+            self.radix = 8;
+            Ok(DeserResult::Continue)
+          }
+          TokenInfo::NumberBinStart => {
+            self.list.clear();
+            self.radix = 2;
+            Ok(DeserResult::Continue)
+          }
+          _ => {
+            if !self.list.is_empty() {
+              match <$typ>::from_str_radix(&self.list, self.radix) {
+                Ok(val) => Ok(DeserResult::CompleteWithRollback(val)),
+                Err(e) => Err(e.into()),
+              }
+            } else {
+              if token_is_space(&token) {
+                Ok(DeserResult::Continue)
+              } else {
+                Err("expect integer".into())
+              }
+            }
           }
         }
       }
     }
-  }
+    impl DefaultDeserializable<$typ> for $typ {
+      type DefaultDeserializer = IntegerDeserializer;
+      fn default_deserializer() -> IntegerDeserializer {
+        IntegerDeserializer { list: String::new(), radix: 10 }
+      }
+    }
+  };
 }
 
-impl DefaultDeserializable<i8> for i8 {
-  type DefaultDeserializer = SignedDeserializer<i8, u8>;
-  fn default_deserializer() -> SignedDeserializer<i8, u8> {
-    SignedDeserializer::<i8, u8> {
-      limb: 0,
-      mul: 10,
-      started: false,
-      is_neg: false,
-      _phantom: std::marker::PhantomData,
-    }
-  }
-}
-impl DefaultDeserializable<i16> for i16 {
-  type DefaultDeserializer = SignedDeserializer<i16, u16>;
-  fn default_deserializer() -> SignedDeserializer<i16, u16> {
-    SignedDeserializer::<i16, u16> {
-      limb: 0,
-      mul: 10,
-      started: false,
-      is_neg: false,
-      _phantom: std::marker::PhantomData,
-    }
-  }
-}
-impl DefaultDeserializable<i32> for i32 {
-  type DefaultDeserializer = SignedDeserializer<i32, u32>;
-  fn default_deserializer() -> SignedDeserializer<i32, u32> {
-    SignedDeserializer::<i32, u32> {
-      limb: 0,
-      mul: 10,
-      started: false,
-      is_neg: false,
-      _phantom: std::marker::PhantomData,
-    }
-  }
-}
-impl DefaultDeserializable<i64> for i64 {
-  type DefaultDeserializer = SignedDeserializer<i64, u64>;
-  fn default_deserializer() -> SignedDeserializer<i64, u64> {
-    SignedDeserializer::<i64, u64> {
-      limb: 0,
-      mul: 10,
-      started: false,
-      is_neg: false,
-      _phantom: std::marker::PhantomData,
-    }
-  }
-}
-impl DefaultDeserializable<i128> for i128 {
-  type DefaultDeserializer = SignedDeserializer<i128, u128>;
-  fn default_deserializer() -> SignedDeserializer<i128, u128> {
-    SignedDeserializer::<i128, u128> {
-      limb: 0,
-      mul: 10,
-      started: false,
-      is_neg: false,
-      _phantom: std::marker::PhantomData,
-    }
-  }
-}
-impl DefaultDeserializable<isize> for isize {
-  type DefaultDeserializer = SignedDeserializer<isize, usize>;
-  fn default_deserializer() -> SignedDeserializer<isize, usize> {
-    SignedDeserializer::<isize, usize> {
-      limb: 0,
-      mul: 10,
-      started: false,
-      is_neg: false,
-      _phantom: std::marker::PhantomData,
-    }
-  }
-}
-
-#[derive(Debug)]
-pub struct UnSignedDeserializer<Unsigned> {
-  limb: Unsigned,
-  mul: Unsigned,
-  started: bool,
-}
-impl<Unsigned> Deserializer<Unsigned> for UnSignedDeserializer<Unsigned>
-where
-  Unsigned: num_traits::PrimInt + num_traits::Unsigned + num_traits::NumCast,
-{
-  fn feed_token(&mut self, token: Token) -> Result<DeserResult<Unsigned>, DeserError> {
-    match token.info {
-      TokenInfo::NumberIntegerDigit | TokenInfo::NumberOct | TokenInfo::NumberBin => {
-        self.started = true;
-        let d = Unsigned::from(to_digit(token.c)).unwrap();
-        self.limb = self.limb.checked_mul(&self.mul).ok_or("integer overflow")?;
-        self.limb = self.limb.checked_add(&d).ok_or("integer overflow")?;
-        Ok(DeserResult::Continue)
-      }
-      TokenInfo::NumberIntegerSign => {
-        if token.c == '+' {
-          self.started = true;
-          Ok(DeserResult::Continue)
-        } else {
-          Err("unsigned integer cannot be negative".into())
-        }
-      }
-      TokenInfo::NumberFractionDigit
-      | TokenInfo::NumberExponentDigit
-      | TokenInfo::NumberFractionStart
-      | TokenInfo::NumberExponentStart
-      | TokenInfo::NumberExponentSign => Err("not an integer".into()),
-      TokenInfo::NumberNan(_, _) => Err("NaN is not an integer".into()),
-      TokenInfo::NumberInfinity(_, _) => Err("Infinity is not an integer".into()),
-      TokenInfo::NumberHexStart => {
-        self.started = true;
-        self.mul = Unsigned::from(16).unwrap();
-        Ok(DeserResult::Continue)
-      }
-      TokenInfo::NumberHex => {
-        self.started = true;
-        let d = Unsigned::from(to_hexdigit(token.c)).unwrap();
-        self.limb = self.limb.checked_mul(&self.mul).ok_or("integer overflow")?;
-        self.limb = self.limb.checked_add(&d).ok_or("integer overflow")?;
-        Ok(DeserResult::Continue)
-      }
-      TokenInfo::NumberOctStart => {
-        self.started = true;
-        self.mul = Unsigned::from(8).unwrap();
-        Ok(DeserResult::Continue)
-      }
-      TokenInfo::NumberBinStart => {
-        self.started = true;
-        self.mul = Unsigned::from(2).unwrap();
-        Ok(DeserResult::Continue)
-      }
-      _ => {
-        if self.started {
-          Ok(DeserResult::CompleteWithRollback(self.limb))
-        } else {
-          if token_is_space(&token) {
-            Ok(DeserResult::Continue)
-          } else {
-            Err("expect integer".into())
-          }
-        }
-      }
-    }
-  }
-}
-impl DefaultDeserializable<u8> for u8 {
-  type DefaultDeserializer = UnSignedDeserializer<u8>;
-  fn default_deserializer() -> UnSignedDeserializer<u8> {
-    UnSignedDeserializer { limb: 0, mul: 10, started: false }
-  }
-}
-impl DefaultDeserializable<u16> for u16 {
-  type DefaultDeserializer = UnSignedDeserializer<u16>;
-  fn default_deserializer() -> UnSignedDeserializer<u16> {
-    UnSignedDeserializer { limb: 0, mul: 10, started: false }
-  }
-}
-impl DefaultDeserializable<u32> for u32 {
-  type DefaultDeserializer = UnSignedDeserializer<u32>;
-  fn default_deserializer() -> UnSignedDeserializer<u32> {
-    UnSignedDeserializer { limb: 0, mul: 10, started: false }
-  }
-}
-impl DefaultDeserializable<u64> for u64 {
-  type DefaultDeserializer = UnSignedDeserializer<u64>;
-  fn default_deserializer() -> UnSignedDeserializer<u64> {
-    UnSignedDeserializer { limb: 0, mul: 10, started: false }
-  }
-}
-impl DefaultDeserializable<u128> for u128 {
-  type DefaultDeserializer = UnSignedDeserializer<u128>;
-  fn default_deserializer() -> UnSignedDeserializer<u128> {
-    UnSignedDeserializer { limb: 0, mul: 10, started: false }
-  }
-}
-impl DefaultDeserializable<usize> for usize {
-  type DefaultDeserializer = UnSignedDeserializer<usize>;
-  fn default_deserializer() -> UnSignedDeserializer<usize> {
-    UnSignedDeserializer { limb: 0, mul: 10, started: false }
-  }
-}
+unsigned_deserializer! {u8}
+unsigned_deserializer! {u16}
+unsigned_deserializer! {u32}
+unsigned_deserializer! {u64}
+unsigned_deserializer! {u128}
+unsigned_deserializer! {usize}
