@@ -57,40 +57,23 @@ fn test_event() {
 }
 
 fn test_deserializer() {
-  print!("{:?}\t", deserialize::<f64>(ParserOption::all(), "1"));
-  print!("{:?}\t", deserialize::<f64>(ParserOption::all(), ".1"));
-  print!("{:?}\t", deserialize::<f64>(ParserOption::all(), "1."));
-  print!("{:?}\t", deserialize::<f64>(ParserOption::all(), "1.234e3"));
-  print!("\n");
+  println!("{:?}", deserialize::<Vec<f64>>(ParserOption::all(), "[1,.1,1.,1.234e3]"));
+  println!("{:?}", deserialize::<Vec<f64>>(ParserOption::all(), "[0x1234,0o1234,0b1011]"));
+  println!("{:?}", deserialize::<Vec<f64>>(ParserOption::all(), "[Infinity,-Infinity,NaN]"));
+  println!("{:?}", deserialize::<Vec<i64>>(ParserOption::all(), "[-0x1234,0o1234,+0b1011]"));
+  println!(
+    "{:?}\t{:?}",
+    deserialize::<Vec<bool>>(ParserOption::all(), "[true,false]"),
+    deserialize::<()>(ParserOption::all(), "null")
+  );
 
-  print!("{:?}\t", deserialize::<f64>(ParserOption::all(), "0x1234"));
-  print!("{:?}\t", deserialize::<f64>(ParserOption::all(), "0o1234"));
-  print!("{:?}\t", deserialize::<f64>(ParserOption::all(), "0b1011"));
-  print!("\n");
-
-  print!("{:?}\t", deserialize::<f64>(ParserOption::all(), "Infinity"));
-  print!("{:?}\t", deserialize::<f64>(ParserOption::all(), "-Infinity"));
-  print!("{:?}\t", deserialize::<f64>(ParserOption::all(), "NaN"));
-  print!("\n");
-
-  print!("{:?}\t", deserialize::<i64>(ParserOption::all(), "-0x1234"));
-  print!("{:?}\t", deserialize::<i64>(ParserOption::all(), "0o1234"));
-  print!("{:?}\t", deserialize::<i64>(ParserOption::all(), "+0b1011"));
-  print!("\n");
-
-  print!("{:?}\t", deserialize::<bool>(ParserOption::all(), "true"));
-  print!("{:?}\t", deserialize::<bool>(ParserOption::all(), "false"));
-  print!("{:?}\t", deserialize::<()>(ParserOption::all(), "null"));
-  print!("\n");
-
-  print!("{:?}\t", deserialize::<Vec<i32>>(ParserOption::all(), "[1,2,3,4]"));
+  print!("{:?}\t", deserialize::<Vec<i32>>(ParserOption::all(), "[1,2,3,4,]"));
   print!(
     "{:?}\t",
-    deserialize::<HashMap<String, Option<i32>>>(ParserOption::all(), "{'a':1,'b':null}")
+    deserialize::<HashMap<String, Option<i32>>>(ParserOption::all(), "{'a':1,'b':null,}")
   );
   print!("\n");
 
-  println!("{:?}", deserialize::<JsonRawString>(ParserOption::all(), r#"{'a':12,b:[13,14]}"#));
   println!("{:?}", deserialize::<JsonRawToken>(ParserOption::all(), r#"{'a':12,b:[13,14]}"#));
 
   print!("{:?}\t", deserialize::<(String, i32)>(ParserOption::all(), r#"["a",12]"#));
@@ -98,6 +81,18 @@ fn test_deserializer() {
   print!("{:?}\t", deserialize::<(String, i32)>(ParserOption::all(), r#"["a",]"#));
   print!("{:?}\t", deserialize::<(String, i32)>(ParserOption::all(), r#"["a",12,13]"#));
   print!("\n");
+
+  println!(
+    "{:?}",
+    deserialize::<HashMap<String, JsonRawString>>(
+      ParserOption::all(),
+      r#"{'a':1.2e3,'b':null,'c':[13,14],'d':{a:12,},}"#
+    )
+  );
+  println!(
+    "{:?}",
+    deserialize::<Vec<JsonRawString>>(ParserOption::all(), r#"[1.2e3,null,[13,14,],{a:12,},]"#)
+  );
 }
 
 fn main() {
