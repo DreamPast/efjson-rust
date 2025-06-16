@@ -86,33 +86,33 @@ pub enum JsonValue {
 pub type JsonArray = Vec<JsonValue>;
 pub type JsonObject = std::collections::HashMap<String, JsonValue>;
 
-impl Into<JsonValue> for () {
-  fn into(self) -> JsonValue {
+impl From<()> for JsonValue {
+  fn from(_: ()) -> JsonValue {
     JsonValue::NULL
   }
 }
-impl Into<JsonValue> for f64 {
-  fn into(self) -> JsonValue {
-    JsonValue::NUMBER(self)
+impl From<f64> for JsonValue {
+  fn from(val: f64) -> Self {
+    JsonValue::NUMBER(val)
   }
 }
-impl Into<JsonValue> for bool {
-  fn into(self) -> JsonValue {
-    JsonValue::BOOL(self)
+impl From<bool> for JsonValue {
+  fn from(val: bool) -> Self {
+    JsonValue::BOOL(val)
   }
 }
-impl Into<JsonValue> for String {
-  fn into(self) -> JsonValue {
-    JsonValue::STRING(self)
+impl From<String> for JsonValue {
+  fn from(val: String) -> Self {
+    JsonValue::STRING(val)
   }
 }
-impl Into<JsonValue> for JsonArray {
-  fn into(self) -> JsonValue {
-    JsonValue::ARRAY(self)
+impl From<JsonArray> for JsonValue {
+  fn from(val: JsonArray) -> Self {
+    JsonValue::ARRAY(val)
   }
 }
-impl Into<JsonValue> for JsonObject {
-  fn into(self) -> JsonValue {
-    JsonValue::OBJECT(self)
+impl From<JsonObject> for JsonValue {
+  fn from(val: JsonObject) -> Self {
+    JsonValue::OBJECT(val)
   }
 }
