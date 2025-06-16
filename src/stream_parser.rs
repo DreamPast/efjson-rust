@@ -28,6 +28,11 @@ mod outer {
     pub fn efjsonStreamParser_getStage(parser: *const StreamParser) -> std::ffi::c_int;
   }
 
+  /**
+  A state machine capable of parsing JSON data one code point at a time and outputting Token information.
+
+  Note: The underlying implementation of this class is in C, and all unsafe parts have been encapsulated.
+  */
   #[repr(C)]
   #[derive(Debug)]
   pub struct StreamParser {
@@ -53,6 +58,11 @@ use outer::*;
 
 use crate::ParserOption;
 
+/**
+The error kind of the parser.
+
+It's not commended to use this enum directly, instead use the `stringify` method to get a human-readable string.
+ */
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum ErrorKind {
@@ -281,24 +291,29 @@ pub struct Token {
 }
 
 impl StreamParser {
+  /** Get the current line number (starting from 0) */
   pub fn get_line(&self) -> usize {
     unsafe { efjsonStreamParser_getLine(self) as usize }
   }
+  /** Get the current column number (starting from 0) */
   pub fn get_column(&self) -> usize {
     unsafe { efjsonStreamParser_getColumn(self) as usize }
   }
+  /** Get the current position number (starting from 0) */
   pub fn get_position(&self) -> usize {
     unsafe { efjsonStreamParser_getPosition(self) as usize }
   }
+  /** Get the current location */
   pub fn get_location(&self) -> Location {
     unsafe { efjsonStreamParser_getLocation(self) }
   }
+  /** Get the current stage */
   pub fn get_stage(&self) -> Stage {
     match unsafe { efjsonStreamParser_getStage(self) } {
       -1 => Stage::NotStarted,
       0 => Stage::Parsing,
       1 => Stage::Ended,
-      _ => unreachable!(),
+      _ => unsafe { std::hint::unreachable_unchecked() },
     }
   }
 }
@@ -311,6 +326,26 @@ impl StreamParser {
     }
   }
 
+  /**
+  Feed a single character to the parser and return the next token.
+
+  # Note
+  If the string is ended, you need to explicitly pass `'\0'` to notify the parser.
+
+  # Example
+  ```rust
+  let parser = StreamParser::new();
+  println!("{:?}", parser.feed_one('n'));
+  ```
+
+  # Panics
+  The function does not panic.
+
+  # Errors
+  If the character is invalid or the parser encounters an error, it will return a `StreamError`.
+  And the state machine will remain unchanged. You can choose to ignore this error and continue parsing,
+  but note that this may lead to incorrect parsing results.
+   */
   pub fn feed_one(&mut self, c: char) -> Result<Token, StreamError> {
     let ctoken = unsafe { efjsonStreamParser_feedOne(self, c as u32) };
     let info = match ctoken.r#type {
@@ -362,10 +397,21 @@ impl StreamParser {
     };
     return Ok(Token { c, info });
   }
-  pub fn end(&mut self) -> Result<Token, StreamError> {
-    self.feed_one('\0')
-  }
 
+  /**
+  Feed an iterator of characters to the parser and return a vector of tokens.
+
+  # Note
+  If the string is ended, you need to explicitly pass `'\0'` to notify the parser.
+
+  # Panics
+  Panics if the number of tokens exceeds `isize::MAX`.
+
+  # Errors
+  If the character is invalid or the parser encounters an error, it will return a `StreamError`.
+  And the state machine will remain unchanged,
+  but the function will not roll back the characters that have already been fed.
+  */
   pub fn feed_iter(&mut self, iter: impl Iterator<Item = char>) -> Result<Vec<Token>, StreamError> {
     let mut tokens = Vec::new();
     for c in iter {
@@ -382,7 +428,7 @@ impl StreamParser {
   pub fn parse(option: ParserOption, s: &str) -> Result<Vec<Token>, StreamError> {
     let mut parser = StreamParser::new(option);
     let mut tokens = parser.feed(s)?;
-    tokens.push(parser.end()?);
+    tokens.push(parser.feed_one('\0')?);
     Ok(tokens)
   }
   pub fn parse_iter(
@@ -391,7 +437,7 @@ impl StreamParser {
   ) -> Result<Vec<Token>, StreamError> {
     let mut parser = StreamParser::new(option);
     let mut tokens = parser.feed_iter(iter)?;
-    tokens.push(parser.end()?);
+    tokens.push(parser.feed_one('\0')?);
     Ok(tokens)
   }
   pub fn create_iter(

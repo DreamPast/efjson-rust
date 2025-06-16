@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 
 macro_rules! tuple_stage {
   ($self:expr, $token:expr,
-    $SubDeserializer:ident, $Receiver:ident, $Type:ident, 
+    $SubDeserializer:ident, $Receiver:ident, $Type:ident,
     $index:tt, $not_enough_block:block, $end_block:block
   ) => {{
     if $self.stage == -1 {
