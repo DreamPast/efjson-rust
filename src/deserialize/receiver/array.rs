@@ -54,6 +54,23 @@ where
         }
       };
     }
+    if matches!(self.stage, StageEnum::WaitElement) {
+      if !token_is_space(&token) {
+        if matches!(token.info, TokenInfo::ArrayEnd) {
+          // trailing comma
+          self.stage = StageEnum::End;
+          return Ok(DeserResult::Complete(self.receiver.end()?));
+        }
+        self.subreceiver = Some(self.receiver.create_element()?);
+        self.stage = StageEnum::Element;
+        if let DeserResult::Complete(elem) = self.subreceiver.as_mut().unwrap().feed_token(token)? {
+          self.subreceiver.take();
+          self.receiver.append(elem)?;
+          self.stage = StageEnum::ElementEnd;
+        }
+      }
+      return Ok(DeserResult::Continue);
+    }
 
     match token.info {
       TokenInfo::ArrayStart => {
@@ -62,7 +79,7 @@ where
         Ok(DeserResult::Continue)
       }
       TokenInfo::ArrayEnd => {
-        assert!(matches!(self.stage, StageEnum::ElementEnd | StageEnum::WaitElement));
+        assert!(matches!(self.stage, StageEnum::ElementEnd));
         self.stage = StageEnum::End;
         Ok(DeserResult::Complete(self.receiver.end()?))
       }
@@ -71,24 +88,7 @@ where
         self.stage = StageEnum::WaitElement;
         Ok(DeserResult::Continue)
       }
-      _ => {
-        if !token_is_space(&token) {
-          if !matches!(self.stage, StageEnum::WaitElement) {
-            return Err("expect array".into());
-          }
-          self.subreceiver = Some(self.receiver.create_element()?);
-          self.stage = StageEnum::Element;
-
-          if let DeserResult::Complete(elem) =
-            self.subreceiver.as_mut().unwrap().feed_token(token)?
-          {
-            self.subreceiver.take();
-            self.receiver.append(elem)?;
-            self.stage = StageEnum::ElementEnd;
-          }
-        }
-        Ok(DeserResult::Continue)
-      }
+      _ => Err("expect array".into()),
     }
   }
 }

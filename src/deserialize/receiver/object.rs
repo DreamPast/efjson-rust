@@ -93,6 +93,43 @@ where
       },
       _ => {}
     }
+    if matches!(self.stage, StageEnum::WaitKey) {
+      if !token_is_space(&token) {
+        if matches!(token.info, TokenInfo::ObjectEnd) {
+          // trailing comma
+          self.stage = StageEnum::End;
+          return Ok(DeserResult::Complete(self.receiver.end()?));
+        }
+
+        self.stage = StageEnum::Key;
+        self.key_subreceiver = Some(self.receiver.create_key()?);
+
+        if let DeserResult::Complete(key) =
+          self.key_subreceiver.as_mut().unwrap().feed_token(token)?
+        {
+          self.key_subreceiver.take();
+          self.key = Some(key);
+          self.stage = StageEnum::KeyEnd;
+        }
+      }
+      return Ok(DeserResult::Continue);
+    }
+    if matches!(self.stage, StageEnum::WaitValue) {
+      if !token_is_space(&token) {
+        self.stage = StageEnum::Value;
+        self.value_subreceiver = Some(self.receiver.create_value(self.key.as_ref().unwrap())?);
+
+        if let DeserResult::Complete(value) =
+          self.value_subreceiver.as_mut().unwrap().feed_token(token)?
+        {
+          self.value_subreceiver.take();
+          self.stage = StageEnum::ValueEnd;
+          self.receiver.set(self.key.take().unwrap(), value)?;
+        }
+      }
+      return Ok(DeserResult::Continue);
+    }
+
     match token.info {
       TokenInfo::ObjectStart => {
         assert!(matches!(self.stage, StageEnum::NotStarted));
@@ -100,7 +137,7 @@ where
         Ok(DeserResult::Continue)
       }
       TokenInfo::ObjectEnd => {
-        assert!(matches!(self.stage, StageEnum::ValueEnd | StageEnum::WaitKey));
+        assert!(matches!(self.stage, StageEnum::ValueEnd));
         self.stage = StageEnum::End;
         Ok(DeserResult::Complete(self.receiver.end()?))
       }
@@ -114,39 +151,11 @@ where
         Ok(DeserResult::Continue)
       }
       _ => {
-        if !token_is_space(&token) {
-          match self.stage {
-            StageEnum::WaitKey => {
-              self.stage = StageEnum::Key;
-              self.key_subreceiver = Some(self.receiver.create_key()?);
-
-              if let DeserResult::Complete(key) =
-                self.key_subreceiver.as_mut().unwrap().feed_token(token)?
-              {
-                self.key_subreceiver.take();
-                self.key = Some(key);
-                self.stage = StageEnum::KeyEnd;
-              }
-            }
-            StageEnum::WaitValue => {
-              self.stage = StageEnum::Value;
-              self.value_subreceiver =
-                Some(self.receiver.create_value(self.key.as_ref().unwrap())?);
-
-              if let DeserResult::Complete(value) =
-                self.value_subreceiver.as_mut().unwrap().feed_token(token)?
-              {
-                self.value_subreceiver.take();
-                self.stage = StageEnum::ValueEnd;
-                self.receiver.set(self.key.take().unwrap(), value)?;
-              }
-            }
-            _ => {
-              return Err("expect object".into());
-            }
-          }
+        if token_is_space(&token) {
+          Ok(DeserResult::Continue)
+        } else {
+          Err("expect object".into())
         }
-        Ok(DeserResult::Continue)
       }
     }
   }
