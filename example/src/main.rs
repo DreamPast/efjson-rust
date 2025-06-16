@@ -82,6 +82,7 @@ fn test_deserializer() {
 
   print!("{:?}\t", deserialize::<(String, i32)>(ParserOption::all(), r#"["a",12]"#));
   print!("{:?}\t", deserialize::<(String, i32)>(ParserOption::all(), r#"["a",12,]"#));
+  print!("{:?}\t", deserialize::<(String, i32)>(ParserOption::all(), r#"[]"#));
   print!("{:?}\t", deserialize::<(String, i32)>(ParserOption::all(), r#"["a",]"#));
   print!("{:?}\t", deserialize::<(String, i32)>(ParserOption::all(), r#"["a",12,13]"#));
   print!("\n");

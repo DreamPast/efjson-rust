@@ -2,30 +2,20 @@ use crate::{
   deserialize::{DefaultDeserializable, DeserError, DeserResult, Deserializer, token_is_space},
   stream_parser::{Token, TokenInfo},
 };
-
 use std::marker::PhantomData;
 
-macro_rules! tuple_wont_end {
-  ($self:expr) => {
-    Err("the length of array is not enough".into())
-  };
-}
-macro_rules! tuple_should_end {
-  ($self:expr) => {{
-    $self.index = -1;
-    Ok(DeserResult::Complete(unsafe { $self.ret.assume_init_read() }))
-  }};
-}
-
 macro_rules! tuple_stage {
-  ($self:expr, $token:expr, $SubDeserializer:ident, $Receiver:ident, $Type:ident, $index:tt, $end_block:block) => {{
+  ($self:expr, $token:expr,
+    $SubDeserializer:ident, $Receiver:ident, $Type:ident, 
+    $index:tt, $not_enough_block:block, $end_block:block
+  ) => {{
     if $self.stage == -1 {
       if token_is_space(&$token) {
         return Ok(DeserResult::Continue);
       } else {
         match $token.info {
           TokenInfo::ArrayNext => unreachable!(),
-          TokenInfo::ArrayEnd => return Err("the length of array is not enough".into()),
+          TokenInfo::ArrayEnd => $not_enough_block,
           _ => {
             $self.subdeser = $SubDeserializer::$Receiver(
               <$Type as DefaultDeserializable<$Type>>::default_deserializer(),
@@ -110,19 +100,19 @@ macro_rules! tuple_stage_end {
 }
 
 macro_rules! define_tuple_deserializer {
-  ($Sub:ident, $Root:ident, $($T:ident, $R:ident),*) => {
-    enum $Sub<$($R),*, $($T),*>
+  ($SubDeserializer:ident, $Deserializer:ident, $($T:ident, $R:ident),*) => {
+    enum $SubDeserializer<$($R),*, $($T),*>
     where $($R: Deserializer<$T>),*
     {
       None,
       $($R($R, PhantomData<$T>),)*
     }
-    pub struct $Root<$($T),*>
+    pub struct $Deserializer<$($T),*>
     where $($T: DefaultDeserializable<$T>),*
     {
       stage: i32,
       index: i32,
-      subdeser: $Sub<
+      subdeser: $SubDeserializer<
         $(<$T as DefaultDeserializable<$T>>::DefaultDeserializer),*,
         $($T),*
       >,
@@ -131,16 +121,27 @@ macro_rules! define_tuple_deserializer {
   };
 }
 macro_rules! create_tuple {
-  ($Sub:ident, $Root:ident, $TT:ident, $RR:ident, $ii: tt, $($T:ident, $R:ident, $i: tt),*) => {
-    define_tuple_deserializer! { $Sub, $Root, $($T, $R),*, $TT, $RR }
-    impl<$($T),*, $TT> Deserializer<($($T),*, $TT)> for $Root<$($T),*, $TT>
+  ($SubDeserializer:ident, $Deserializer:ident, $TT:ident, $RR:ident, $ii:tt, $($T:ident, $R:ident, $i:tt),*) => {
+    define_tuple_deserializer! { $SubDeserializer, $Deserializer, $($T, $R),*, $TT, $RR }
+    impl<$($T),*, $TT> Deserializer<($($T),*, $TT)> for $Deserializer<$($T),*, $TT>
     where $($T: DefaultDeserializable<$T>),*, $TT: DefaultDeserializable<$TT>
     {
       fn feed_token(&mut self, token: Token) -> Result<DeserResult<($($T),*, $TT)>, DeserError> {
         match self.index {
           -1 => tuple_stage_start!(self, token),
-          $($i => tuple_stage!(self, token, $Sub, $R, $T, $i, { tuple_wont_end!(self) })),*,
-          $ii => tuple_stage!(self, token, $Sub, $RR, $TT, $ii, { tuple_should_end!(self) }),
+          $(
+            $i => tuple_stage!(self, token, $SubDeserializer, $R, $T, $i, {
+              return Err(format!("expected array of length {}, got {}", $ii + 1, $i).into())
+            }, {
+              Err(format!("expected array of length {}, got {}", $ii, $i).into())
+            })
+          ),*,
+          $ii => tuple_stage!(self, token, $SubDeserializer, $RR, $TT, $ii, {
+              return Err(format!("expected array of length {}, got {}", $ii + 1, $ii).into())
+            }, {{
+            self.index = -1;
+            Ok(DeserResult::Complete(unsafe { self.ret.assume_init_read() }))
+          }}),
           val if val == $ii + 1 => tuple_stage_end!(self, token),
           _ => unreachable!(),
         }
@@ -149,17 +150,17 @@ macro_rules! create_tuple {
     impl<$($T),*, $TT> DefaultDeserializable<($($T),*, $TT)> for ($($T),*, $TT)
     where $($T: DefaultDeserializable<$T>),*, $TT: DefaultDeserializable<$TT>
     {
-      type DefaultDeserializer = $Root<$($T),*, $TT>;
+      type DefaultDeserializer = $Deserializer<$($T),*, $TT>;
       fn default_deserializer() -> Self::DefaultDeserializer {
-        $Root {
+        $Deserializer {
           stage: 0,
           index: -1,
-          subdeser: $Sub::None,
+          subdeser: $SubDeserializer::None,
           ret: std::mem::MaybeUninit::uninit(),
         }
       }
     }
-    impl<$($T),*, $TT> Drop for $Root<$($T),*, $TT>
+    impl<$($T),*, $TT> Drop for $Deserializer<$($T),*, $TT>
     where $($T: DefaultDeserializable<$T>),*, $TT: DefaultDeserializable<$TT>
     {
       fn drop(&mut self) {
