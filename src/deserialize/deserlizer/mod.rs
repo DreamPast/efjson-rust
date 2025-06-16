@@ -5,6 +5,7 @@ mod object;
 mod stateless;
 mod string;
 
+mod box_rc;
 mod optional;
 mod tuple;
 
