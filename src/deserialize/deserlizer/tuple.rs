@@ -11,9 +11,10 @@ macro_rules! tuple_wont_end {
   };
 }
 macro_rules! tuple_should_end {
-  ($self:expr) => {
+  ($self:expr) => {{
+    $self.index = -1;
     Ok(DeserResult::Complete(unsafe { $self.ret.assume_init_read() }))
-  };
+  }};
 }
 
 macro_rules! tuple_stage {
@@ -98,7 +99,10 @@ macro_rules! tuple_stage_end {
     } else {
       match $token.info {
         TokenInfo::ArrayNext => unreachable!(),
-        TokenInfo::ArrayEnd => Ok(DeserResult::Complete(unsafe { $self.ret.assume_init_read() })),
+        TokenInfo::ArrayEnd => {
+          $self.index = -1;
+          Ok(DeserResult::Complete(unsafe { $self.ret.assume_init_read() }))
+        }
         _ => Err("array length exceeds requirement".into()),
       }
     }
