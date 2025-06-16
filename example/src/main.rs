@@ -66,13 +66,17 @@ fn test_deserializer() {
     deserialize::<Vec<bool>>(ParserOption::all(), "[true,false]"),
     deserialize::<()>(ParserOption::all(), "null")
   );
-
-  print!("{:?}\t", deserialize::<Vec<i32>>(ParserOption::all(), "[1,2,3,4,]"));
-  print!(
-    "{:?}\t",
+  println!(
+    "{:?}\t{:?}\t{:?}\t{:?}",
+    deserialize::<[i32; 4]>(ParserOption::all(), "[1,2,3,4]"),
+    deserialize::<[i32; 4]>(ParserOption::all(), "[1,2,3,4,]"),
+    deserialize::<[i32; 4]>(ParserOption::all(), "[1,2,]"),
+    deserialize::<[i32; 4]>(ParserOption::all(), "[1,2,3,4,5]")
+  );
+  println!(
+    "{:?}",
     deserialize::<HashMap<String, Option<i32>>>(ParserOption::all(), "{'a':1,'b':null,}")
   );
-  print!("\n");
 
   println!("{:?}", deserialize::<JsonRawToken>(ParserOption::all(), r#"{'a':12,b:[13,14]}"#));
 
