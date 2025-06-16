@@ -377,20 +377,7 @@ impl StreamParser {
     self.feed_iter(s.chars())
   }
 }
-impl Drop for StreamParser {
-  fn drop(&mut self) {
-    unsafe { efjsonStreamParser_deinit(self) }
-  }
-}
-impl Clone for StreamParser {
-  fn clone(&self) -> Self {
-    let mut parser = std::mem::MaybeUninit::<StreamParser>::uninit();
-    unsafe {
-      efjsonStreamParser_initCopy(parser.as_mut_ptr(), self);
-      parser.assume_init()
-    }
-  }
-}
+
 impl StreamParser {
   pub fn parse(option: ParserOption, s: &str) -> Result<Vec<Token>, StreamError> {
     let mut parser = StreamParser::new(option);
@@ -415,3 +402,19 @@ impl StreamParser {
     iter.chain(std::iter::once('\0')).map(move |c| parser.feed_one(c))
   }
 }
+
+impl Drop for StreamParser {
+  fn drop(&mut self) {
+    unsafe { efjsonStreamParser_deinit(self) }
+  }
+}
+impl Clone for StreamParser {
+  fn clone(&self) -> Self {
+    let mut parser = std::mem::MaybeUninit::<StreamParser>::uninit();
+    unsafe {
+      efjsonStreamParser_initCopy(parser.as_mut_ptr(), self);
+      parser.assume_init()
+    }
+  }
+}
+unsafe impl Send for StreamParser {}

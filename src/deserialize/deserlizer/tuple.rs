@@ -42,7 +42,7 @@ macro_rules! tuple_stage {
         match $token.info {
           TokenInfo::ArrayNext => {
             $self.stage = -1;
-            $self.index = $index + 2;
+            $self.index = $index + 1;
             Ok(DeserResult::Continue)
           }
           TokenInfo::ArrayEnd => $end_block,
@@ -67,7 +67,7 @@ macro_rules! tuple_stage {
           match $token.info {
             TokenInfo::ArrayNext => {
               $self.stage = -1;
-              $self.index = $index + 2;
+              $self.index = $index + 1;
               Ok(DeserResult::Continue)
             }
             TokenInfo::ArrayEnd => $end_block,
@@ -84,7 +84,7 @@ macro_rules! tuple_stage_start {
       Ok(DeserResult::Continue)
     } else if matches!($token.info, TokenInfo::ArrayStart) {
       $self.stage = -1;
-      $self.index = 1;
+      $self.index = 0;
       Ok(DeserResult::Continue)
     } else {
       Err("expect an array".into())
@@ -117,7 +117,7 @@ macro_rules! define_tuple_deserializer {
     where $($T: DefaultDeserializable<$T>),*
     {
       stage: i32,
-      index: u32,
+      index: i32,
       subdeser: $Sub<
         $(<$T as DefaultDeserializable<$T>>::DefaultDeserializer),*,
         $($T),*
@@ -134,10 +134,10 @@ macro_rules! create_tuple {
     {
       fn feed_token(&mut self, token: Token) -> Result<DeserResult<($($T),*, $TT)>, DeserError> {
         match self.index {
-          0 => tuple_stage_start!(self, token),
-          $(val if val == $i + 1 => tuple_stage!(self, token, $Sub, $R, $T, $i, { tuple_wont_end!(self) })),*,
-          val if val == $ii + 1 => tuple_stage!(self, token, $Sub, $RR, $TT, $ii, { tuple_should_end!(self) }),
-          val if val == $ii + 2 => tuple_stage_end!(self, token),
+          -1 => tuple_stage_start!(self, token),
+          $($i => tuple_stage!(self, token, $Sub, $R, $T, $i, { tuple_wont_end!(self) })),*,
+          $ii => tuple_stage!(self, token, $Sub, $RR, $TT, $ii, { tuple_should_end!(self) }),
+          val if val == $ii + 1 => tuple_stage_end!(self, token),
           _ => unreachable!(),
         }
       }
@@ -149,9 +149,23 @@ macro_rules! create_tuple {
       fn default_deserializer() -> Self::DefaultDeserializer {
         $Root {
           stage: 0,
-          index: 0,
+          index: -1,
           subdeser: $Sub::None,
           ret: std::mem::MaybeUninit::uninit(),
+        }
+      }
+    }
+    impl<$($T),*, $TT> Drop for $Root<$($T),*, $TT>
+    where $($T: DefaultDeserializable<$T>),*, $TT: DefaultDeserializable<$TT>
+    {
+      fn drop(&mut self) {
+        $(
+          if self.index > $i || (self.index == $i && self.stage == 1) {
+            std::mem::drop(unsafe { std::ptr::addr_of_mut!((*self.ret.as_mut_ptr()).$i).read() });
+          }
+        )*
+        if self.index > $ii || (self.index == $ii && self.stage == 1) {
+          std::mem::drop(unsafe { std::ptr::addr_of_mut!((*self.ret.as_mut_ptr()).$ii).read() });
         }
       }
     }
