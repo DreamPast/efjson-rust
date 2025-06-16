@@ -1,5 +1,5 @@
 use crate::{
-  deserialize::{DefaultDeserializable, DeserError, DeserResult, Deserializer, token_is_space},
+  deserialize::{DefaultDeserializable, DeserError, DeserResult, Deserializer},
   stream_parser::{Token, TokenInfo},
 };
 use std::marker::PhantomData;
@@ -10,7 +10,7 @@ macro_rules! tuple_stage {
     $index:tt, $not_enough_block:block, $end_block:block
   ) => {{
     if $self.stage == -1 {
-      if token_is_space(&$token) {
+      if $token.is_space() {
         return Ok(DeserResult::Continue);
       } else {
         match $token.info {
@@ -27,7 +27,7 @@ macro_rules! tuple_stage {
       }
     }
     if $self.stage == 1 {
-      return if token_is_space(&$token) {
+      return if $token.is_space() {
         Ok(DeserResult::Continue)
       } else {
         match $token.info {
@@ -52,7 +52,7 @@ macro_rules! tuple_stage {
       DeserResult::CompleteWithRollback(r) => {
         unsafe { std::ptr::addr_of_mut!((*$self.ret.as_mut_ptr()).$index).write(r) };
         // $self.stage = 1;
-        if token_is_space(&$token) {
+        if $token.is_space() {
           Ok(DeserResult::Continue)
         } else {
           match $token.info {
@@ -71,7 +71,7 @@ macro_rules! tuple_stage {
 }
 macro_rules! tuple_stage_start {
   ($self:expr, $token:expr) => {
-    if token_is_space(&$token) {
+    if $token.is_space() {
       Ok(DeserResult::Continue)
     } else if matches!($token.info, TokenInfo::ArrayStart) {
       $self.stage = -1;
@@ -84,7 +84,7 @@ macro_rules! tuple_stage_start {
 }
 macro_rules! tuple_stage_end {
   ($self:expr, $token:expr) => {{
-    if (token_is_space(&$token)) {
+    if ($token.is_space()) {
       Ok(DeserResult::Continue)
     } else {
       match $token.info {

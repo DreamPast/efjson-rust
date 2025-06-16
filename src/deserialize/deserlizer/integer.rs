@@ -1,5 +1,5 @@
 use crate::{
-  deserialize::{DefaultDeserializable, DeserError, DeserResult, Deserializer, token_is_space},
+  deserialize::{DefaultDeserializable, DeserError, DeserResult, Deserializer},
   stream_parser::{Token, TokenInfo},
 };
 
@@ -53,7 +53,7 @@ macro_rules! signed_deserializer {
                 Err(e) => Err(e.into()),
               }
             } else {
-              if token_is_space(&token) {
+              if token.is_space() {
                 Ok(DeserResult::Continue)
               } else {
                 Err("expect integer".into())
@@ -128,7 +128,7 @@ macro_rules! unsigned_deserializer {
                 Err(e) => Err(e.into()),
               }
             } else {
-              if token_is_space(&token) {
+              if token.is_space() {
                 Ok(DeserResult::Continue)
               } else {
                 Err("expect integer".into())

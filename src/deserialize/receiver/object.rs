@@ -1,5 +1,5 @@
 use crate::{
-  deserialize::{DeserError, DeserResult, Deserializer, token_is_space},
+  deserialize::{DeserError, DeserResult, Deserializer},
   stream_parser::{Token, TokenInfo},
 };
 use std::marker::PhantomData;
@@ -94,7 +94,7 @@ where
       _ => {}
     }
     if matches!(self.stage, StageEnum::WaitKey) {
-      if !token_is_space(&token) {
+      if !token.is_space() {
         if matches!(token.info, TokenInfo::ObjectEnd) {
           // trailing comma
           self.stage = StageEnum::End;
@@ -117,7 +117,7 @@ where
       return Ok(DeserResult::Continue);
     }
     if matches!(self.stage, StageEnum::WaitValue) {
-      if !token_is_space(&token) {
+      if !token.is_space() {
         self.stage = StageEnum::Value;
         self.value_subreceiver = Some(self.receiver.create_value(self.key.as_ref().unwrap())?);
 
@@ -155,7 +155,7 @@ where
         Ok(DeserResult::Continue)
       }
       _ => {
-        if token_is_space(&token) {
+        if token.is_space() {
           Ok(DeserResult::Continue)
         } else {
           Err("expect object".into())

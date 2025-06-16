@@ -1,5 +1,5 @@
 use crate::{
-  deserialize::{DefaultDeserializable, DeserError, DeserResult, Deserializer, token_is_space},
+  deserialize::{DefaultDeserializable, DeserError, DeserResult, Deserializer},
   stream_parser::TokenInfo,
 };
 
@@ -21,7 +21,7 @@ where
     token: crate::stream_parser::Token,
   ) -> Result<DeserResult<Option<T>>, DeserError> {
     if !self.started {
-      if token_is_space(&token) {
+      if token.is_space() {
         return Ok(DeserResult::Continue);
       }
       match token.info {

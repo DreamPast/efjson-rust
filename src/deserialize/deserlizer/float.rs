@@ -1,5 +1,5 @@
 use crate::{
-  deserialize::{DefaultDeserializable, DeserError, DeserResult, Deserializer, token_is_space},
+  deserialize::{DefaultDeserializable, DeserError, DeserResult, Deserializer},
   stream_parser::TokenInfo,
 };
 
@@ -100,11 +100,7 @@ macro_rules! float_deserializer {
                 Err(e) => Err(format!("parse float error: {}", e).into()),
               }
             } else {
-              if token_is_space(&token) {
-                Ok(DeserResult::Continue)
-              } else {
-                Err("expect number".into())
-              }
+              if token.is_space() { Ok(DeserResult::Continue) } else { Err("expect number".into()) }
             }
           }
         }

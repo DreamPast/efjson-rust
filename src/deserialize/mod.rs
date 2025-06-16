@@ -1,19 +1,7 @@
 use crate::{
   ParserOption,
-  stream_parser::{StreamParser, Token, TokenInfo},
+  stream_parser::{StreamParser, Token},
 };
-
-pub fn token_is_space(token: &Token) -> bool {
-  return matches!(
-    token.info,
-    TokenInfo::CommentMayStart
-      | TokenInfo::CommentMultiLine
-      | TokenInfo::CommentSingleLine
-      | TokenInfo::CommentMultiLineEnd
-      | TokenInfo::Eof
-      | TokenInfo::Whitespace
-  );
-}
 
 #[derive(Debug)]
 pub enum DeserResult<Result> {
@@ -22,10 +10,7 @@ pub enum DeserResult<Result> {
   Continue,
 }
 impl<Result> DeserResult<Result> {
-  fn map<Dest, Op>(self, op: Op) -> DeserResult<Dest>
-  where
-    Op: FnOnce(Result) -> Dest,
-  {
+  pub fn map<Dest, Op: FnOnce(Result) -> Dest>(self, op: Op) -> DeserResult<Dest> {
     match self {
       DeserResult::Complete(result) => DeserResult::Complete(op(result)),
       DeserResult::CompleteWithRollback(result) => DeserResult::CompleteWithRollback(op(result)),

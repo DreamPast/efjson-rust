@@ -1,5 +1,5 @@
 use crate::{
-  deserialize::{DeserError, DeserResult, Deserializer, token_is_space},
+  deserialize::{DeserError, DeserResult, Deserializer},
   stream_parser::{Token, TokenInfo},
 };
 
@@ -46,7 +46,7 @@ where
         Ok(DeserResult::Continue)
       }
       _ => {
-        if token_is_space(&token) {
+        if token.is_space() {
           Ok(DeserResult::Continue)
         } else {
           Err("expect string".into())

@@ -1,5 +1,5 @@
 use crate::{
-  deserialize::{DeserError, DeserResult, Deserializer, token_is_space},
+  deserialize::{DeserError, DeserResult, Deserializer},
   stream_parser::{Token, TokenInfo},
 };
 use std::marker::PhantomData;
@@ -55,7 +55,7 @@ where
       };
     }
     if matches!(self.stage, StageEnum::WaitElement) {
-      if !token_is_space(&token) {
+      if !token.is_space() {
         if matches!(token.info, TokenInfo::ArrayEnd) {
           // trailing comma
           self.stage = StageEnum::End;

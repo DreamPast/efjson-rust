@@ -1,5 +1,5 @@
 use crate::{
-  deserialize::{DefaultDeserializable, DeserError, DeserResult, Deserializer, token_is_space},
+  deserialize::{DefaultDeserializable, DeserError, DeserResult, Deserializer},
   stream_parser::TokenInfo,
 };
 
@@ -29,7 +29,7 @@ impl Deserializer<bool> for StatelessDeserializer<bool> {
         }
       }
       _ => {
-        if token_is_space(&token) {
+        if token.is_space() {
           Ok(DeserResult::Continue)
         } else {
           Err("expect boolean".into())
@@ -59,7 +59,7 @@ impl Deserializer<()> for StatelessDeserializer<()> {
         }
       }
       _ => {
-        if token_is_space(&token) {
+        if token.is_space() {
           Ok(DeserResult::Continue)
         } else {
           Err("expect null".into())
