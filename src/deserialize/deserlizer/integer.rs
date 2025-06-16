@@ -3,6 +3,7 @@ use crate::{
   stream_parser::{Token, TokenInfo},
 };
 
+#[derive(Debug)]
 pub struct IntegerDeserializer {
   list: String,
   radix: u32,

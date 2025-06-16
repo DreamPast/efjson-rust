@@ -4,6 +4,7 @@ use crate::{
   stream_parser::{Category, Token},
 };
 
+#[derive(Debug)]
 enum JsonSubdeserializer {
   Null(<() as DefaultDeserializable<()>>::DefaultDeserializer),
   Boolean(<bool as DefaultDeserializable<bool>>::DefaultDeserializer),
@@ -16,7 +17,7 @@ enum JsonSubdeserializer {
     >>::DefaultDeserializer,
   ),
 }
-
+#[derive(Debug)]
 pub struct JsonDeserializer {
   subdeser: Option<Box<JsonSubdeserializer>>,
 }

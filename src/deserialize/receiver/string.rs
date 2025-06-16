@@ -9,6 +9,7 @@ pub trait StringReceiverTrait<Return> {
   fn end(&mut self) -> Result<Return, DeserError>;
 }
 
+#[derive(Debug)]
 pub struct StringReceiverDeserializer<Return, Receiver>
 where
   Receiver: StringReceiverTrait<Return>,

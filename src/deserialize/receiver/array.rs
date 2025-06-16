@@ -18,6 +18,7 @@ enum StageEnum {
   ElementEnd,
   End,
 }
+#[derive(Debug)]
 pub struct ArrayReceiverDeserializer<Element, Return, Receiver, SubDeserializer>
 where
   Receiver: ArrayReceiverTrait<Element, Return, SubDeserializer>,

@@ -3,6 +3,7 @@ use crate::{
   stream_parser::{Category, Token, TokenInfo},
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum StageEnum {
   NotStarted,
   Stateless, // null, true, false
@@ -15,6 +16,7 @@ enum StageEnum {
 pub struct JsonRawString {
   pub json: String,
 }
+#[derive(Debug)]
 pub struct JsonRawStringDeserializer {
   stage: StageEnum,
   cnt: usize,
@@ -118,6 +120,7 @@ impl DefaultDeserializable<JsonRawString> for JsonRawString {
 pub struct JsonRawToken {
   pub tokens: Vec<Token>,
 }
+#[derive(Debug)]
 pub struct JsonRawTokenDeserializer {
   stage: StageEnum,
   cnt: usize,

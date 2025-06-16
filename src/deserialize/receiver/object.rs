@@ -29,6 +29,7 @@ enum StageEnum {
   ValueEnd,
   End,
 }
+#[derive(Debug)]
 pub struct ObjectReceiverDeserializer<
   Key,
   Value,

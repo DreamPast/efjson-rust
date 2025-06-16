@@ -15,7 +15,7 @@ macro_rules! tuple_stage {
       } else {
         match $token.info {
           TokenInfo::ArrayNext => unreachable!(),
-          TokenInfo::ArrayEnd => $not_enough_block,
+          TokenInfo::ArrayEnd => return $not_enough_block,
           _ => {
             $self.subdeser = $SubDeserializer::$Receiver(
               <$Type as DefaultDeserializable<$Type>>::default_deserializer(),
@@ -101,6 +101,7 @@ macro_rules! tuple_stage_end {
 
 macro_rules! define_tuple_deserializer {
   ($SubDeserializer:ident, $Deserializer:ident, $($T:ident, $R:ident),*) => {
+    #[derive(Debug)]
     enum $SubDeserializer<$($R),*, $($T),*>
     where $($R: Deserializer<$T>),*
     {
@@ -116,7 +117,7 @@ macro_rules! define_tuple_deserializer {
         $(<$T as DefaultDeserializable<$T>>::DefaultDeserializer),*,
         $($T),*
       >,
-      ret: std::mem::MaybeUninit<($($T),*)>,
+      ret: std::mem::MaybeUninit<($($T),*,)>,
     }
   };
 }
@@ -131,17 +132,18 @@ macro_rules! create_tuple {
           -1 => tuple_stage_start!(self, token),
           $(
             $i => tuple_stage!(self, token, $SubDeserializer, $R, $T, $i, {
-              return Err(format!("expected array of length {}, got {}", $ii + 1, $i).into())
+              Err(format!("expected array of length {}, got {}", $ii + 1, $i).into())
             }, {
-              Err(format!("expected array of length {}, got {}", $ii, $i).into())
+              Err(format!("expected array of length {}, got {}", $ii + 1, $i).into())
             })
           ),*,
           $ii => tuple_stage!(self, token, $SubDeserializer, $RR, $TT, $ii, {
-              return Err(format!("expected array of length {}, got {}", $ii + 1, $ii).into())
-            }, {{
-            self.index = -1;
-            Ok(DeserResult::Complete(unsafe { self.ret.assume_init_read() }))
-          }}),
+              Err(format!("expected array of length {}, got {}", $ii + 1, $ii).into())
+            }, {
+              self.index = -1;
+              Ok(DeserResult::Complete(unsafe { self.ret.assume_init_read() }))
+            }
+          ),
           val if val == $ii + 1 => tuple_stage_end!(self, token),
           _ => unreachable!(),
         }
@@ -175,6 +177,57 @@ macro_rules! create_tuple {
       }
     }
   };
+}
+
+define_tuple_deserializer! { Tuple1SubDeserializer, Tuple1Deserializer, T1, R1 }
+impl<T1> Deserializer<(T1,)> for Tuple1Deserializer<T1>
+where
+  T1: DefaultDeserializable<T1>,
+{
+  fn feed_token(&mut self, token: Token) -> Result<DeserResult<(T1,)>, DeserError> {
+    match self.index {
+      -1 => tuple_stage_start!(self, token),
+      0 => tuple_stage!(
+        self,
+        token,
+        Tuple1SubDeserializer,
+        R1,
+        T1,
+        0,
+        { Err(format!("expected array of length {}, got {}", 1, 0).into()) },
+        {
+          self.index = -1;
+          Ok(DeserResult::Complete(unsafe { self.ret.assume_init_read() }))
+        }
+      ),
+      1 => tuple_stage_end!(self, token),
+      _ => unreachable!(),
+    }
+  }
+}
+impl<T1> DefaultDeserializable<(T1,)> for (T1,)
+where
+  T1: DefaultDeserializable<T1>,
+{
+  type DefaultDeserializer = Tuple1Deserializer<T1>;
+  fn default_deserializer() -> Self::DefaultDeserializer {
+    Tuple1Deserializer {
+      stage: 0,
+      index: -1,
+      subdeser: Tuple1SubDeserializer::None,
+      ret: std::mem::MaybeUninit::uninit(),
+    }
+  }
+}
+impl<T1> Drop for Tuple1Deserializer<T1>
+where
+  T1: DefaultDeserializable<T1>,
+{
+  fn drop(&mut self) {
+    if self.index > 0 || (self.index == 0 && self.stage == 1) {
+      std::mem::drop(unsafe { std::ptr::addr_of_mut!((*self.ret.as_mut_ptr()).0).read() });
+    }
+  }
 }
 
 create_tuple! {Tuple2Subdeserializer, Tuple2Deserializer, T2, R2, 1,
