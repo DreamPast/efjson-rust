@@ -1,62 +1,11 @@
-use std::{collections::HashMap, vec};
+use std::collections::HashMap;
 
 use efjson::{
   JsonValue, ParserOption,
   deserialize::{JsonRawString, JsonRawToken, deserialize},
-  event_parser::{EventObjectReceiver, EventParser, EventReceiver},
-  stream_parser::StreamParser,
 };
 
-#[allow(dead_code)]
-fn perf() {
-  use std::time::Instant;
-  let mut s1 = String::new();
-  s1 += "[";
-  s1 += &"100,".repeat(1000);
-  s1.pop();
-  s1 += "],";
-  let mut s = String::new();
-  s += "[";
-  s += &s1.repeat(1000);
-  s.pop();
-  s += "]";
-
-  let start = Instant::now();
-  let x = StreamParser::parse(ParserOption::default(), &s);
-  println!("{} {}", s.len(), x.unwrap().len());
-  let duration = start.elapsed();
-  println!("Time: {:?}", duration);
-}
-
-const SRC: &'static str = r#"{
-"N":null,"T":true,"F":false,
-"str":"str,\"esc\",\uD83D\uDE00,😊",
-"num":-1.2e3,"arr":["A",{"obj":"B"}]
-}"#;
-
-#[allow(dead_code)]
-fn test_stream() {
-  let tokens = StreamParser::parse(ParserOption::default(), SRC).unwrap();
-  for item in tokens {
-    println!("{:?}", item);
-  }
-}
-
-#[allow(dead_code)]
-fn test_event() {
-  let receiver = EventReceiver {
-    object: EventObjectReceiver {
-      set: Some(Box::new(|k, v| {
-        println!("{}: {:?}", k, v);
-      })),
-      ..Default::default()
-    },
-    ..EventReceiver::new_all()
-  };
-  EventParser::parse(receiver, ParserOption::make_json5(), SRC).unwrap();
-}
-
-fn test_deserializer() {
+fn test_deserialize() {
   println!("{:?}", deserialize::<Vec<f64>>(ParserOption::all(), "[1,.1,1.,1.234e3]"));
   println!("{:?}", deserialize::<Vec<f64>>(ParserOption::all(), "[0x1234,0o1234,0b1011]"));
   println!("{:?}", deserialize::<Vec<f64>>(ParserOption::all(), "[Infinity,-Infinity,NaN]"));
@@ -131,11 +80,5 @@ fn test_deserializer() {
 }
 
 fn main() {
-  println!("======Stream Parser======");
-  test_stream();
-  perf();
-  println!("======Event Parser======");
-  test_event();
-  println!("======Deserializer======");
-  test_deserializer();
+  test_deserialize();
 }

@@ -12,3 +12,16 @@ bitflags = "2.9.1"
 
 [build-dependencies]
 cc = "1.2.27"
+
+[features]
+default = ["deserialize"]
+event = []
+deserialize = []
+
+[[example]]
+name = "event"
+required-features = ['event']
+
+[[example]]
+name = "deserialize"
+required-features = ['deserialize']

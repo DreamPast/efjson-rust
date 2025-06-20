@@ -1,6 +1,6 @@
 bitflags::bitflags! {
   #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
- pub struct ParserOption: u32 {
+  pub struct ParserOption: u32 {
     /* << white space >> */
     /** whether to accept whitespace in JSON5 */
     const JSON5_WHITESPACE         = 0x000001;
