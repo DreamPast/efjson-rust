@@ -185,7 +185,17 @@ dependencies = [
  "bitflags",
  "cc",
  "criterion",
+ "efjson_derive",
  "rand",
+]
+
+[[package]]
+name = "efjson_derive"
+version = "0.2.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

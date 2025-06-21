@@ -10,6 +10,7 @@ build = "build.rs"
 
 [dependencies]
 bitflags = "2.9.1"
+efjson_derive = { path = "../efjson_derive", optional = true }
 
 [build-dependencies]
 cc = "1.2.27"
@@ -19,17 +20,22 @@ criterion = { version = "0.6.0", features = ["html_reports"] }
 rand = { version = "0.9.1" }
 
 [features]
-default = ["deserialize"]
+default = ["deserialize", "derive"]
 event = []
 deserialize = []
+derive = ["deserialize", "dep:efjson_derive"]
 
 [[example]]
 name = "event"
-required-features = ['event']
+required-features = ["event"]
 
 [[example]]
 name = "deserialize"
-required-features = ['deserialize']
+required-features = ["deserialize"]
+
+[[example]]
+name = "derive"
+required-features = ["deserialize", "derive"]
 
 [[bench]]
 name = "stream"
