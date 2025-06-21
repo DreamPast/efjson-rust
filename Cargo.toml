@@ -13,6 +13,10 @@ bitflags = "2.9.1"
 [build-dependencies]
 cc = "1.2.27"
 
+[dev-dependencies]
+criterion = { version = "0.6.0", features = ["html_reports"] }
+rand = { version = "0.9.1" }
+
 [features]
 default = ["deserialize"]
 event = []
@@ -25,3 +29,7 @@ required-features = ['event']
 [[example]]
 name = "deserialize"
 required-features = ['deserialize']
+
+[[bench]]
+name = "stream"
+harness = false
