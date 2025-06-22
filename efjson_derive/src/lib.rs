@@ -88,12 +88,14 @@ pub fn derive_answer_fn(input: proc_macro::TokenStream) -> proc_macro::TokenStre
           ::efjson::deserialize::DeserResult::Complete(r) => {
             unsafe { ::std::ptr::write(&mut (*self.target.as_mut_ptr()).#ident, r) };
             self.flag[#idx] = true;
+            unsafe { ::std::mem::ManuallyDrop::drop(&mut self.subreceiver.assume_init_mut().#ident) };
             self.index = usize::max_value();
             ::efjson::deserialize::DeserResult::Complete(())
           }
           ::efjson::deserialize::DeserResult::CompleteWithRollback(r) => {
             unsafe { ::std::ptr::write(&mut (*self.target.as_mut_ptr()).#ident, r) };
             self.flag[#idx] = true;
+            unsafe { ::std::mem::ManuallyDrop::drop(&mut self.subreceiver.assume_init_mut().#ident) };
             self.index = usize::max_value();
             ::efjson::deserialize::DeserResult::CompleteWithRollback(())
           }

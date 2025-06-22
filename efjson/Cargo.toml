@@ -37,6 +37,10 @@ required-features = ["deserialize"]
 name = "derive"
 required-features = ["deserialize", "derive"]
 
+[[example]]
+name = "drop"
+required-features = ["deserialize", "derive"]
+
 [[bench]]
 name = "stream"
 harness = false
