@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use efjson::{
+  deserialize::{deserialize, JsonRawString, JsonRawToken},
   JsonValue, ParserOption,
-  deserialize::{JsonRawString, JsonRawToken, deserialize},
 };
 
 fn test_deserialize() {

@@ -1,6 +1,6 @@
 use crate::{
-  ParserOption,
   stream_parser::{StreamParser, Token},
+  ParserOption,
 };
 
 #[derive(Debug)]

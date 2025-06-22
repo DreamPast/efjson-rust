@@ -1,6 +1,6 @@
 use crate::deserialize::{
-  DefaultDeserializable, DeserError, ObjectReceiverDeserializer, ObjectReceiverTrait,
-  create_object_deserializer,
+  create_object_deserializer, DefaultDeserializable, DeserError, ObjectReceiverDeserializer,
+  ObjectReceiverTrait,
 };
 use std::{
   collections::{BTreeMap, HashMap},

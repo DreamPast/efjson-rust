@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use criterion::{Criterion, criterion_group, criterion_main};
-use efjson::{ParserOption, stream_parser::StreamParser};
+use criterion::{criterion_group, criterion_main, Criterion};
+use efjson::{stream_parser::StreamParser, ParserOption};
 use rand::random_range;
 
 fn bench_no_save(option: ParserOption, s: &str) {

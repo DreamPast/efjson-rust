@@ -1,7 +1,7 @@
 use crate::{
-  JsonValue,
   deserialize::{DefaultDeserializable, DeserError, DeserResult, Deserializer},
   stream_parser::{Category, Token},
+  JsonValue,
 };
 
 #[derive(Debug)]

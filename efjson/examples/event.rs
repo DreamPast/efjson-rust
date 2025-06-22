@@ -1,6 +1,6 @@
 use efjson::{
-  ParserOption,
   event_parser::{EventObjectReceiver, EventParser, EventReceiver},
+  ParserOption,
 };
 
 const SRC: &'static str = r#"{

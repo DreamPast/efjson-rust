@@ -100,7 +100,11 @@ macro_rules! float_deserializer {
                 Err(e) => Err(format!("parse float error: {}", e).into()),
               }
             } else {
-              if token.is_space() { Ok(DeserResult::Continue) } else { Err("expect number".into()) }
+              if token.is_space() {
+                Ok(DeserResult::Continue)
+              } else {
+                Err("expect number".into())
+              }
             }
           }
         }

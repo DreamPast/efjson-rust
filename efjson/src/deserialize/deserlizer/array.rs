@@ -1,6 +1,6 @@
 use crate::deserialize::{
-  ArrayReceiverDeserializer, ArrayReceiverTrait, DefaultDeserializable, DeserError,
-  create_array_deserializer,
+  create_array_deserializer, ArrayReceiverDeserializer, ArrayReceiverTrait, DefaultDeserializable,
+  DeserError,
 };
 
 #[derive(Debug)]
