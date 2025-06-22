@@ -2,7 +2,7 @@ use crate::{
   deserialize::{DeserError, DeserResult, Deserializer},
   stream_parser::{Token, TokenInfo},
 };
-use std::marker::PhantomData;
+use std::{marker::PhantomData, mem::MaybeUninit};
 
 pub trait ObjectReceiverTrait<
   Key,
@@ -43,9 +43,9 @@ pub struct ObjectReceiverDeserializer<
   ValueDeserializer: Deserializer<Value>,
 {
   receiver: Receiver,
-  key_subreceiver: Option<KeyDeserializer>,
-  value_subreceiver: Option<ValueDeserializer>,
-  key: Option<Key>,
+  key_subreceiver: MaybeUninit<KeyDeserializer>,
+  value_subreceiver: MaybeUninit<ValueDeserializer>,
+  key: MaybeUninit<Key>,
   stage: StageEnum,
   _phantom: PhantomData<(Return, Value)>,
 }
@@ -58,40 +58,40 @@ where
 {
   fn feed_token(&mut self, token: Token) -> Result<DeserResult<Return>, DeserError> {
     match self.stage {
-      StageEnum::Key => match self.key_subreceiver.as_mut().unwrap().feed_token(token)? {
-        DeserResult::Complete(key) => {
-          self.key_subreceiver.take();
-          self.key = Some(key);
-          self.stage = StageEnum::KeyEnd;
-          return Ok(DeserResult::Continue);
+      StageEnum::Key => {
+        match unsafe { self.key_subreceiver.assume_init_mut() }.feed_token(token)? {
+          DeserResult::Complete(key) => {
+            unsafe { self.key_subreceiver.assume_init_drop() };
+            self.key.write(key);
+            self.stage = StageEnum::KeyEnd;
+            return Ok(DeserResult::Continue);
+          }
+          DeserResult::CompleteWithRollback(key) => {
+            unsafe { self.key_subreceiver.assume_init_drop() };
+            self.key.write(key);
+            self.stage = StageEnum::KeyEnd;
+            // fallthrough
+          }
+          DeserResult::Continue => return Ok(DeserResult::Continue),
         }
-        DeserResult::CompleteWithRollback(key) => {
-          self.key_subreceiver.take();
-          self.key = Some(key);
-          self.stage = StageEnum::KeyEnd;
-          // fallthrough
+      }
+      StageEnum::Value => {
+        match unsafe { self.value_subreceiver.assume_init_mut() }.feed_token(token)? {
+          DeserResult::Complete(value) => {
+            unsafe { self.value_subreceiver.assume_init_drop() };
+            self.stage = StageEnum::ValueEnd;
+            self.receiver.set(unsafe { self.key.assume_init_read() }, value)?;
+            return Ok(DeserResult::Continue);
+          }
+          DeserResult::CompleteWithRollback(value) => {
+            unsafe { self.value_subreceiver.assume_init_drop() };
+            self.stage = StageEnum::ValueEnd;
+            self.receiver.set(unsafe { self.key.assume_init_read() }, value)?;
+            // fallthrough
+          }
+          DeserResult::Continue => return Ok(DeserResult::Continue),
         }
-        DeserResult::Continue => {
-          return Ok(DeserResult::Continue);
-        }
-      },
-      StageEnum::Value => match self.value_subreceiver.as_mut().unwrap().feed_token(token)? {
-        DeserResult::Complete(value) => {
-          self.value_subreceiver.take();
-          self.stage = StageEnum::ValueEnd;
-          self.receiver.set(self.key.take().unwrap(), value)?;
-          return Ok(DeserResult::Continue);
-        }
-        DeserResult::CompleteWithRollback(value) => {
-          self.value_subreceiver.take();
-          self.stage = StageEnum::ValueEnd;
-          self.receiver.set(self.key.take().unwrap(), value)?;
-          // fallthrough
-        }
-        DeserResult::Continue => {
-          return Ok(DeserResult::Continue);
-        }
-      },
+      }
       _ => {}
     }
     if matches!(self.stage, StageEnum::WaitKey) {
@@ -102,13 +102,13 @@ where
           return Ok(DeserResult::Complete(self.receiver.end()?));
         }
 
+        self.key_subreceiver.write(self.receiver.create_key()?);
         self.stage = StageEnum::Key;
-        self.key_subreceiver = Some(self.receiver.create_key()?);
 
-        match self.key_subreceiver.as_mut().unwrap().feed_token(token)? {
+        match unsafe { self.key_subreceiver.assume_init_mut() }.feed_token(token)? {
           DeserResult::Complete(key) => {
-            self.key_subreceiver.take();
-            self.key = Some(key);
+            unsafe { self.key_subreceiver.assume_init_drop() };
+            self.key.write(key);
             self.stage = StageEnum::KeyEnd;
           }
           DeserResult::CompleteWithRollback(_) => unreachable!(),
@@ -120,13 +120,15 @@ where
     if matches!(self.stage, StageEnum::WaitValue) {
       if !token.is_space() {
         self.stage = StageEnum::Value;
-        self.value_subreceiver = Some(self.receiver.create_value(self.key.as_ref().unwrap())?);
+        self
+          .value_subreceiver
+          .write(self.receiver.create_value(unsafe { self.key.assume_init_ref() })?);
 
-        match self.value_subreceiver.as_mut().unwrap().feed_token(token)? {
+        match unsafe { self.value_subreceiver.assume_init_mut() }.feed_token(token)? {
           DeserResult::Complete(value) => {
-            self.value_subreceiver.take();
+            unsafe { self.value_subreceiver.assume_init_drop() };
             self.stage = StageEnum::ValueEnd;
-            self.receiver.set(self.key.take().unwrap(), value)?;
+            self.receiver.set(unsafe { self.key.assume_init_read() }, value)?;
           }
           DeserResult::CompleteWithRollback(_) => unreachable!(),
           DeserResult::Continue => {}
@@ -166,6 +168,26 @@ where
   }
 }
 
+impl<Key, Value, Return, Receiver, KeyDeserializer, ValueDeserializer> Drop
+  for ObjectReceiverDeserializer<Key, Value, Return, Receiver, KeyDeserializer, ValueDeserializer>
+where
+  Receiver: ObjectReceiverTrait<Key, Value, Return, KeyDeserializer, ValueDeserializer>,
+  KeyDeserializer: Deserializer<Key>,
+  ValueDeserializer: Deserializer<Value>,
+{
+  fn drop(&mut self) {
+    if matches!(self.stage, StageEnum::Key) {
+      unsafe { self.key_subreceiver.assume_init_drop() };
+    }
+    if matches!(self.stage, StageEnum::Value) {
+      unsafe { self.value_subreceiver.assume_init_drop() };
+    }
+    if matches!(self.stage, StageEnum::KeyEnd | StageEnum::WaitValue | StageEnum::Value) {
+      unsafe { self.key.assume_init_drop() };
+    }
+  }
+}
+
 pub fn create_object_deserializer<
   Key,
   Value,
@@ -183,9 +205,9 @@ where
 {
   ObjectReceiverDeserializer {
     receiver,
-    key: None,
-    key_subreceiver: None,
-    value_subreceiver: None,
+    key: MaybeUninit::uninit(),
+    key_subreceiver: MaybeUninit::uninit(),
+    value_subreceiver: MaybeUninit::uninit(),
     stage: StageEnum::NotStarted,
     _phantom: PhantomData,
   }

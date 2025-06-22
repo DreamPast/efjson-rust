@@ -2,7 +2,7 @@ use crate::{
   deserialize::{DeserError, DeserResult, Deserializer},
   stream_parser::{Token, TokenInfo},
 };
-use std::marker::PhantomData;
+use std::{marker::PhantomData, mem::MaybeUninit};
 
 pub trait ArrayReceiverTrait<Element, Return, SubDeserializer: Deserializer<Element>> {
   fn create_element(&mut self) -> Result<SubDeserializer, DeserError>;
@@ -25,7 +25,7 @@ where
   SubDeserializer: Deserializer<Element>,
 {
   receiver: Receiver,
-  subreceiver: Option<SubDeserializer>,
+  subreceiver: MaybeUninit<SubDeserializer>,
   stage: StageEnum,
   _phantom: PhantomData<(Return, Element)>,
 }
@@ -37,22 +37,20 @@ where
 {
   fn feed_token(&mut self, token: Token) -> Result<DeserResult<Return>, DeserError> {
     if matches!(self.stage, StageEnum::Element) {
-      match self.subreceiver.as_mut().unwrap().feed_token(token)? {
+      match unsafe { self.subreceiver.assume_init_mut() }.feed_token(token)? {
         DeserResult::Complete(elem) => {
-          self.subreceiver.take();
+          unsafe { self.subreceiver.assume_init_drop() };
           self.receiver.append(elem)?;
           self.stage = StageEnum::ElementEnd;
           return Ok(DeserResult::Continue);
         }
         DeserResult::CompleteWithRollback(elem) => {
-          self.subreceiver.take();
+          unsafe { self.subreceiver.assume_init_drop() };
           self.receiver.append(elem)?;
           self.stage = StageEnum::ElementEnd;
           // fallthrough
         }
-        DeserResult::Continue => {
-          return Ok(DeserResult::Continue);
-        }
+        DeserResult::Continue => return Ok(DeserResult::Continue),
       };
     }
     if matches!(self.stage, StageEnum::WaitElement) {
@@ -62,11 +60,11 @@ where
           self.stage = StageEnum::End;
           return Ok(DeserResult::Complete(self.receiver.end()?));
         }
-        self.subreceiver = Some(self.receiver.create_element()?);
+        self.subreceiver.write(self.receiver.create_element()?);
         self.stage = StageEnum::Element;
-        match self.subreceiver.as_mut().unwrap().feed_token(token)? {
+        match unsafe { self.subreceiver.assume_init_mut() }.feed_token(token)? {
           DeserResult::Complete(elem) => {
-            self.subreceiver.take();
+            unsafe { self.subreceiver.assume_init_drop() };
             self.receiver.append(elem)?;
             self.stage = StageEnum::ElementEnd;
           }
@@ -97,6 +95,18 @@ where
     }
   }
 }
+impl<Element, Return, Receiver, SubDeserializer> Drop
+  for ArrayReceiverDeserializer<Element, Return, Receiver, SubDeserializer>
+where
+  Receiver: ArrayReceiverTrait<Element, Return, SubDeserializer>,
+  SubDeserializer: Deserializer<Element>,
+{
+  fn drop(&mut self) {
+    if matches!(self.stage, StageEnum::Element) {
+      unsafe { self.subreceiver.assume_init_drop() };
+    }
+  }
+}
 
 pub fn create_array_deserializer<Element, Return, Receiver, SubDeserializer>(
   receiver: Receiver,
@@ -107,7 +117,7 @@ where
 {
   ArrayReceiverDeserializer {
     receiver,
-    subreceiver: None,
+    subreceiver: MaybeUninit::uninit(),
     stage: StageEnum::NotStarted,
     _phantom: PhantomData,
   }
