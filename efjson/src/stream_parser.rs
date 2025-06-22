@@ -436,3 +436,4 @@ impl Clone for StreamParser {
   }
 }
 unsafe impl Send for StreamParser {}
+unsafe impl Sync for StreamParser {}
