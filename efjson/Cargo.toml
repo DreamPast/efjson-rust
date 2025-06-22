@@ -1,6 +1,6 @@
 [package]
 name = "efjson"
-version = "0.2.0"
+version = "0.3.0"
 description = "a streaming and event-driven JSON parser (with support for JSON5 and JSONC)"
 license = "MIT"
 edition = "2021"
@@ -10,7 +10,7 @@ build = "build.rs"
 
 [dependencies]
 bitflags = "2.9.1"
-efjson_derive = { path = "../efjson_derive", optional = true }
+efjson_derive = { path = "../efjson_derive", optional = true, version = "0.3.0"}
 
 [build-dependencies]
 cc = "1.2.27"

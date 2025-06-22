@@ -306,7 +306,8 @@ impl StreamParser {
 
   # Example
   ```rust
-  let parser = StreamParser::new();
+  use efjson::{stream_parser::StreamParser,ParserOption};
+  let mut parser = StreamParser::new(ParserOption::all());
   println!("{:?}", parser.feed_one('n'));
   ```
 
