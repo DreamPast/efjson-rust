@@ -49,7 +49,8 @@ pub trait DefaultDeserializable<T> {
   type DefaultDeserializer: Deserializer<T>;
   fn default_deserializer() -> Self::DefaultDeserializer;
 }
-pub fn create_default_deserializer<T: DefaultDeserializable<T>>() -> impl Deserializer<T> {
+pub fn create_default_deserializer<T: DefaultDeserializable<T>>(
+) -> <T as DefaultDeserializable<T>>::DefaultDeserializer {
   T::default_deserializer()
 }
 

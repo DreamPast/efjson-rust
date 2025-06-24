@@ -1,7 +1,9 @@
 use std::{marker::PhantomData, mem::MaybeUninit};
 
 use crate::{
-  deserialize::{DefaultDeserializable, DeserError, DeserResult, Deserializer},
+  deserialize::{
+    create_default_deserializer, DefaultDeserializable, DeserError, DeserResult, Deserializer,
+  },
   stream_parser::{Token, TokenInfo},
 };
 
@@ -77,9 +79,7 @@ impl<Return, Receiver: StructHelperReceiverTrait<Return>> Deserializer<Return>
           return Ok(DeserResult::Complete(self.receiver.end()?));
         }
 
-        self
-          .key_subreceiver
-          .write(<String as DefaultDeserializable<String>>::default_deserializer());
+        self.key_subreceiver.write(create_default_deserializer::<String>());
         self.stage = StageEnum::Key;
 
         match unsafe { self.key_subreceiver.assume_init_mut() }.feed_token(token)? {

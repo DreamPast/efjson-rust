@@ -1,5 +1,7 @@
 use crate::{
-  deserialize::{DefaultDeserializable, DeserError, DeserResult, Deserializer},
+  deserialize::{
+    create_default_deserializer, DefaultDeserializable, DeserError, DeserResult, Deserializer,
+  },
   stream_parser::{Token, TokenInfo},
 };
 use std::marker::PhantomData;
@@ -17,10 +19,8 @@ macro_rules! tuple_stage {
           TokenInfo::ArrayNext => unreachable!(),
           TokenInfo::ArrayEnd => return $not_enough_block,
           _ => {
-            $self.subdeser = $SubDeserializer::$Receiver(
-              <$Type as DefaultDeserializable<$Type>>::default_deserializer(),
-              PhantomData,
-            );
+            $self.subdeser =
+              $SubDeserializer::$Receiver(create_default_deserializer::<$Type>(), PhantomData);
             $self.stage = 0;
           }
         }
