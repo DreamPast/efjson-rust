@@ -23,20 +23,21 @@ pub type DeserError = Box<dyn std::error::Error + Send + Sync>;
 
 pub trait Deserializer<T> {
   fn feed_token(&mut self, token: Token) -> Result<DeserResult<T>, DeserError>;
+
+  fn feed_token_iter(
+    &mut self,
+    token_iter: impl Iterator<Item = Token>,
+  ) -> Result<DeserResult<T>, DeserError> {
+    for token in token_iter {
+      match self.feed_token(token)? {
+        DeserResult::Continue => {}
+        rest => return Ok(rest),
+      }
+    }
+    Ok(DeserResult::Continue)
+  }
 }
 
-pub fn feed_tokens_to<T>(
-  deserializer: &mut impl Deserializer<T>,
-  token_iter: impl Iterator<Item = Token>,
-) -> Result<DeserResult<T>, DeserError> {
-  for token in token_iter {
-    match deserializer.feed_token(token)? {
-      DeserResult::Continue => {}
-      rest => return Ok(rest),
-    }
-  }
-  Ok(DeserResult::Continue)
-}
 pub fn unwrap_deser_result<T>(result: Result<DeserResult<T>, DeserError>) -> Result<T, DeserError> {
   match result? {
     DeserResult::Complete(v) | DeserResult::CompleteWithRollback(v) => Ok(v),
@@ -72,7 +73,7 @@ pub fn deserialize_tokens<T: DefaultDeserializable<T>>(
   tokens: impl Iterator<Item = Token>,
 ) -> Result<T, DeserError> {
   let mut deserializer = create_default_deserializer::<T>();
-  unwrap_deser_result(feed_tokens_to(&mut deserializer, tokens))
+  unwrap_deser_result(deserializer.feed_token_iter(tokens))
 }
 
 mod receiver;
